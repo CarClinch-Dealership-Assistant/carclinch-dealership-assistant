@@ -15,6 +15,7 @@ The `/docs` directory in this repository contains uploaded files that are import
 ```
 infra/              → Terraform modules (future task)
 docs/               → Uploaded files (presentations, reports, diagrams, etc.)
+postgres/           → Postgres via Docker & init with DB schema
 .github/workflows/  → CI/CD pipelines (future task)
 tests/              → Unit and integration tests (Pytest, future task)
 ```
