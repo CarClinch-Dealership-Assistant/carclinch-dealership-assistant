@@ -17,7 +17,7 @@ docker logs -f followup_db
 docker compose down -v
 ```
 
-### Reset the database (important when schema changes) 
+### Reset the database
 ```bash
 docker compose down -v
 docker compose up -d
