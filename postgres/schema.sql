@@ -40,11 +40,6 @@ CREATE TABLE IF NOT EXISTS leads (
     created_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ============================================================
--- 4. CONVERSATIONS
--- status: 0 = inactive, 1 = active
--- ============================================================
-
 CREATE TABLE IF NOT EXISTS conversations (
     conversation_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     lead_id         INT NOT NULL REFERENCES leads(lead_id) ON DELETE CASCADE,
