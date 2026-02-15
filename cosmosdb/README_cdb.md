@@ -12,16 +12,19 @@ IMO if you have Windows, use the installer. If you have Linux, use Docker. The W
 
 # 2. Init the containers
 1. Activate your virtual environment and install dependencies.
+
 macOS/Linux
 ```bash
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
 Windows
 ```bash
 .venv\Scripts\activate
 pip install -r requirements.txt
 ```
+
 2. Run the script to init containers & seed data:
 ```bash
 python init.py
