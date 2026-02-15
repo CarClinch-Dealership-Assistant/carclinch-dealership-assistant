@@ -10,7 +10,7 @@ IMO if you have Windows, use the installer. If you have Linux, use Docker. The W
 
 ---
 
-# 2. Init the containers
+## 2. Init the containers
 1. Activate your virtual environment and install dependencies.
 
 macOS/Linux
