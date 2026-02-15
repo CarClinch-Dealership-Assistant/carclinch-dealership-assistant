@@ -24,5 +24,5 @@ pip install -r requirements.txt
 ```
 2. Run the script to init containers & seed data:
 ```bash
-python init_cosmos.py
+python init.py
 ```
