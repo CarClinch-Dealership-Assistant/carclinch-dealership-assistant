@@ -1,4 +1,8 @@
 from azure.cosmos import CosmosClient, PartitionKey
+import urllib3
+
+# since cosmos db emulator uses self-signed cert, we'll disable warnings for local development (not recommended for production code)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # cosmos db emulator defaults, not sensitive since it's local development only
 ENDPOINT = "https://localhost:8081"

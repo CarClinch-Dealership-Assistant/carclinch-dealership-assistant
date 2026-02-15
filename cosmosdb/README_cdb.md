@@ -29,3 +29,7 @@ pip install -r requirements.txt
 ```bash
 python init.py
 ```
+
+TADA!!
+
+![alt text](images/image.png)
