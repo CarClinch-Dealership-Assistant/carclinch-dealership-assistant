@@ -30,6 +30,11 @@ pip install -r requirements.txt
 python init.py
 ```
 
+3. Navigate to the following:
+```
+https://localhost:8081/_explorer/index.html
+```
+
 TADA!!
 
 ![alt text](images/image.png)
