@@ -8,8 +8,6 @@ Follow the instructions for the options here: [Cosmos DB Emulator Setup](https:/
 
 IMO if you have Windows, use the installer. If you have Linux, use Docker. The Windows Docker image is extremely heavy.
 
----
-
 ## 2. Init the containers
 
 ### 1. Activate your virtual environment and install dependencies.
@@ -57,56 +55,32 @@ Messages are partitioned by:
 
 So to delete all messages for a conversation, the stored procedure must run **inside the messages container**, scoped to that conversation’s partition.
 
-**Example:** delete conversation and all related messages for a lead in Python script w/ Cosmos DB SDK
-```python
-from azure.cosmos import CosmosClient
-
-client = CosmosClient(ENDPOINT, KEY)
-db = client.get_database_client("carclinch")
-messages = db.get_container_client("messages")
-
-result = messages.scripts.execute_stored_procedure(
-    sproc="cascadeDeleteConversation",
-    partition_key="conv_501",
-    params=["conv_501"]
-)
-
-print(result)
+Ex.
+```bash
+// deletes the conversation matching the id and all its messages
+py cascade_delete_item.py --conversation conv_3b9e1c77aa
 ```
 
 ---
 
 ### `cascadeDeleteLead` (conversations container)
 
-**Purpose:** delete all conversations belonging to a lead and trigger message deletion for each conversation.
+**Purpose:** delete all conversations belonging to a lead, and works with `cascadeDeleteConversations` to delete all its messages as well.
 
 Conversations are partitioned by:
-
 ```
 /leadId
 ```
-
 So to delete all conversations for a lead, the stored procedure must run **inside the conversations container**, scoped to that lead’s partition.
-
-**Example:** delete lead, all related conversations, and each conversations' related messages in Python script w/ Cosmos DB SDK
-```python
-from azure.cosmos import CosmosClient
-
-client = CosmosClient(ENDPOINT, KEY)
-db = client.get_database_client("carclinch")
-messages = db.get_container_client("conversations")
-
-result = messages.scripts.execute_stored_procedure(
-    sproc="cascadeDeleteLead",
-    partition_key="lead_555",
-    params=["lead_555"]
-)
-
-print(result)
-```
 
 This gives you a full cascade:
 
 ```
 Lead -> Conversations -> Messages
+```
+
+Ex.
+```bash
+// deletes 'John Smith' and all his convos and messages
+py cascade_delete_item.py --lead lead_91ab3cd9e1
 ```

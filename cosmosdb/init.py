@@ -122,7 +122,7 @@ CONVERSATIONS = [
   },
   {
     "id": "conv_5c1e9d22f0",
-    "leadId": "lead_229fub8ss0",
+    "leadId": "lead_91ab3cd9e1",
     "vehicleId": "vehicle_7b2c9e11d0",
     "status": 1,
     "timestamp": "2025-02-10T16:00:00Z",
@@ -138,7 +138,7 @@ CONVERSATIONS = [
 
 MESSAGES = [
   {
-    "id": "msg_sys_1001",
+    "id": "msg_4fa92c1bd0",
     "conversationId": "conv_7fa22c9b0d",
     "body": "Hi Alice, thanks for your interest in the 2020 Honda Civic EX at our Ottawa dealership. It's a clean car with 45,000 km and automatic transmission. Let me know if you'd like more details or want to schedule a visit.",
     "source": 0,
@@ -147,7 +147,7 @@ MESSAGES = [
     "timestamp": "2025-02-10T15:00:30Z"
   },
   {
-    "id": "msg_4d9f22aa10",
+    "id": "msg_b1e93f77aa",
     "conversationId": "conv_7fa22c9b0d",
     "body": "Hi, I'm interested in the Honda Civic.",
     "source": 1,
@@ -156,17 +156,44 @@ MESSAGES = [
     "timestamp": "2025-02-10T15:06:00Z"
   },
   {
-    "id": "msg_8c22ab19f1",
+    "id": "msg_9c2e1f44cc",
     "conversationId": "conv_7fa22c9b0d",
-    "body": "Thanks Alice! When would you like to come in?",
+    "body": "Great to hear, Alice! Are you available this week to come by and take a look at the Civic?",
     "source": 0,
     "emailMessageIdRef": "<msg9002@example.com>",
     "emailThreadId": "acs-thread-7fa22c9b0d",
     "timestamp": "2025-02-10T15:07:00Z"
   },
+  {
+    "id": "msg_7de01abf32",
+    "conversationId": "conv_7fa22c9b0d",
+    "body": "Yes, I’m free on Thursday afternoon. Does that work?",
+    "source": 1,
+    "emailMessageIdRef": "<msg9002@example.com>",
+    "emailThreadId": "acs-thread-7fa22c9b0d",
+    "timestamp": "2025-02-10T15:09:30Z"
+  },
+  {
+    "id": "msg_f0a3c9e811",
+    "conversationId": "conv_7fa22c9b0d",
+    "body": "Thursday works perfectly. I’ve booked you for 3:00 PM at 123 Main St, Ottawa. Looking forward to seeing you!",
+    "source": 0,
+    "emailMessageIdRef": "<msg9003@example.com>",
+    "emailThreadId": "acs-thread-7fa22c9b0d",
+    "timestamp": "2025-02-10T15:10:10Z"
+  },
+  {
+    "id": "msg_2b94ef77d9",
+    "conversationId": "conv_7fa22c9b0d",
+    "body": "Great, thank you! See you then.",
+    "source": 1,
+    "emailMessageIdRef": "<msg9003@example.com>",
+    "emailThreadId": "acs-thread-7fa22c9b0d",
+    "timestamp": "2025-02-10T15:11:00Z"
+  },
 
   {
-    "id": "msg_sys_2001",
+    "id": "msg_8c1f22bb04",
     "conversationId": "conv_5c1e9d22f0",
     "body": "Hi John, thanks for reaching out about the 2021 Toyota Corolla SE. It has only 22,000 km and is in great condition. Let me know if you'd like to come by our Ottawa location to take a look.",
     "source": 0,
@@ -175,7 +202,7 @@ MESSAGES = [
     "timestamp": "2025-02-11T10:30:20Z"
   },
   {
-    "id": "msg_1a9e3c77bb",
+    "id": "msg_3e9d11ac72",
     "conversationId": "conv_5c1e9d22f0",
     "body": "Is the Corolla still available?",
     "source": 1,
@@ -185,7 +212,7 @@ MESSAGES = [
   },
 
   {
-    "id": "msg_sys_3001",
+    "id": "msg_5bd0f9aa13",
     "conversationId": "conv_3b9e1c77aa",
     "body": "Hi John, thanks for your interest in the Ford Fusion SEL. It was recently serviced and is in good shape. Let me know if you'd like to arrange a viewing.",
     "source": 0,
@@ -194,15 +221,25 @@ MESSAGES = [
     "timestamp": "2025-02-11T10:35:00Z"
   },
   {
-    "id": "msg_9b2e1f44cc",
+    "id": "msg_c7e12f44b8",
     "conversationId": "conv_3b9e1c77aa",
-    "body": "Hi John, yes the Corolla is available.",
+    "body": "Thanks for the info. Is it still available?",
+    "source": 1,
+    "emailMessageIdRef": "<msg9200@example.com>",
+    "emailThreadId": "acs-thread-3b9e1c77aa",
+    "timestamp": "2025-02-11T10:35:40Z"
+  },
+  {
+    "id": "msg_e4b82a19cc",
+    "conversationId": "conv_3b9e1c77aa",
+    "body": "Hi John, yes the Fusion is available.",
     "source": 0,
     "emailMessageIdRef": "<msg9201@example.com>",
     "emailThreadId": "acs-thread-3b9e1c77aa",
     "timestamp": "2025-02-11T10:36:00Z"
   }
 ]
+
 
 # custom stored procedures for cascade delete functionality 
 # since cosmos db doesn't support this natively, we have to implement it ourselves in the app layer
