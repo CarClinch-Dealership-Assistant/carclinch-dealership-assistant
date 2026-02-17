@@ -8,7 +8,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ENDPOINT = "https://localhost:8081"
 KEY = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==" 
 
-DB_NAME = "carclinch"
+DB_NAME = "CarClinchDB"
 
 CONTAINERS = [
     { "id": "dealerships",   "pk": "/id" },
@@ -138,13 +138,21 @@ CONVERSATIONS = [
 
 MESSAGES = [
   {
+    "id": "msg_sys_1001",
+    "conversationId": "conv_7fa22c9b0d",
+    "body": "Hi Alice, thanks for your interest in the 2020 Honda Civic EX at our Ottawa dealership. It's a clean car with 45,000 km and automatic transmission. Let me know if you'd like more details or want to schedule a visit.",
+    "source": 0,
+    "emailMessageIdRef": "<msg9001@example.com>",
+    "emailThreadId": None,
+    "timestamp": "2025-02-10T15:00:30Z"
+  },
+  {
     "id": "msg_4d9f22aa10",
     "conversationId": "conv_7fa22c9b0d",
     "body": "Hi, I'm interested in the Honda Civic.",
     "source": 1,
-    "in_reply_to": None,
-    "email_thread": None,
-    "message_identifier": "<msg9001@example.com>",
+    "emailMessageIdRef": "<msg9001@example.com>",
+    "emailThreadId": "acs-thread-7fa22c9b0d",
     "timestamp": "2025-02-10T15:06:00Z"
   },
   {
@@ -152,29 +160,46 @@ MESSAGES = [
     "conversationId": "conv_7fa22c9b0d",
     "body": "Thanks Alice! When would you like to come in?",
     "source": 0,
-    "in_reply_to": "<msg9001@example.com>",
-    "email_thread": None,
-    "message_identifier": "<msg9002@example.com>",
+    "emailMessageIdRef": "<msg9002@example.com>",
+    "emailThreadId": "acs-thread-7fa22c9b0d",
     "timestamp": "2025-02-10T15:07:00Z"
+  },
+
+  {
+    "id": "msg_sys_2001",
+    "conversationId": "conv_5c1e9d22f0",
+    "body": "Hi John, thanks for reaching out about the 2021 Toyota Corolla SE. It has only 22,000 km and is in great condition. Let me know if you'd like to come by our Ottawa location to take a look.",
+    "source": 0,
+    "emailMessageIdRef": "<msg9100@example.com>",
+    "emailThreadId": None,
+    "timestamp": "2025-02-11T10:30:20Z"
   },
   {
     "id": "msg_1a9e3c77bb",
     "conversationId": "conv_5c1e9d22f0",
     "body": "Is the Corolla still available?",
     "source": 1,
-    "in_reply_to": None,
-    "email_thread": None,
-    "message_identifier": "<msg9100@example.com>",
-    "timestamp": "2025-02-10T16:01:00Z"
+    "emailMessageIdRef": "<msg9100@example.com>",
+    "emailThreadId": "acs-thread-5c1e9d22f0",
+    "timestamp": "2025-02-11T10:31:00Z"
+  },
+
+  {
+    "id": "msg_sys_3001",
+    "conversationId": "conv_3b9e1c77aa",
+    "body": "Hi John, thanks for your interest in the Ford Fusion SEL. It was recently serviced and is in good shape. Let me know if you'd like to arrange a viewing.",
+    "source": 0,
+    "emailMessageIdRef": "<msg9200@example.com>",
+    "emailThreadId": None,
+    "timestamp": "2025-02-11T10:35:00Z"
   },
   {
     "id": "msg_9b2e1f44cc",
     "conversationId": "conv_3b9e1c77aa",
     "body": "Hi John, yes the Corolla is available.",
     "source": 0,
-    "in_reply_to": None,
-    "email_thread": None,
-    "message_identifier": "<msg9200@example.com>",
+    "emailMessageIdRef": "<msg9201@example.com>",
+    "emailThreadId": "acs-thread-3b9e1c77aa",
     "timestamp": "2025-02-11T10:36:00Z"
   }
 ]
