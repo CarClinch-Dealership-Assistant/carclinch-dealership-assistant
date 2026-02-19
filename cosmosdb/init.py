@@ -95,7 +95,6 @@ LEADS = [
     "email": "alice@example.com",
     "phone": "555-1111",
     "status": 0,
-    "wants_email": True,
     "notes": "Interested in Honda Civic",
     "timestamp": "2025-02-10T15:00:00Z"
   },
