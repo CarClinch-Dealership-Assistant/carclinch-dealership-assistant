@@ -22,6 +22,7 @@ CONTAINERS = [
 DEALERSHIPS = [
     {
         "id": "dealer_8c1d9f22aa",
+        "name": "Example Dealership",
         "email": "dealer@example.com",
         "phone": "555-1234",
         "address1": "123 Main St",
@@ -32,6 +33,7 @@ DEALERSHIPS = [
     },
     {
         "id": "dealer_4f92ab10c3",
+        "name": "Auto World Ottawa",
         "email": "sales@autoworld.ca",
         "phone": "555-7777",
         "address1": "77 Carling Ave",
