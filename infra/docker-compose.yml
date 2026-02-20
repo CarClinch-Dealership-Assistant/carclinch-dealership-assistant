@@ -1,0 +1,62 @@
+name: email-processing
+services:
+  # azurite emulator
+  azurite:
+    container_name: "azurite"
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+    networks:
+      - sb-emulator
+  # service bus emulator
+  emulator:
+    container_name: "servicebus-emulator"
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    pull_policy: always
+    volumes:
+      - "${CONFIG_PATH}:/ServiceBus_Emulator/ConfigFiles/Config.json"
+    ports:
+      - "5672:5672"
+      - "5300:${EMULATOR_HTTP_PORT:-5300}"
+    environment:
+      SQL_SERVER: mssql
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD}"
+      ACCEPT_EULA: ${ACCEPT_EULA}
+      EMULATOR_HTTP_PORT: ${EMULATOR_HTTP_PORT:-5300}
+      SQL_WAIT_INTERVAL: 15
+    depends_on:
+      - mssql
+    networks:
+      - sb-emulator
+  # mssql server for service bus emulator
+  mssql:
+    container_name: "mssql"
+    image: "mcr.microsoft.com/mssql/server:2022-latest"
+    environment:
+      ACCEPT_EULA: ${ACCEPT_EULA}
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD}"
+    networks:
+      - sb-emulator
+  # email processing service, pulled from org Docker Hub image
+  email-processing-service:
+    container_name: "email-processing-service"
+    image: carclinchda/email-processing-service:latest
+    pull_policy: always
+    environment:
+      AzureWebJobsStorage: "UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite"
+      FUNCTIONS_WORKER_RUNTIME_VERSION: "3.12"
+      AZURE_FUNCTIONS_ENVIRONMENT: "Development"
+      WEBSITE_HOSTNAME: "localhost:80"
+      AzureWebJobsServiceBus: "Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+      ACS_CONNECTION_STRING: "${ACS_CONNECTION_STRING}"
+      SENDER_ADDRESS: "${SENDER_ADDRESS}"
+    depends_on:
+      - emulator
+      - azurite
+    networks:
+      - sb-emulator
+
+networks:
+  sb-emulator:
