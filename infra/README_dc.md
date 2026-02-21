@@ -3,6 +3,7 @@
 ## Docker Compose
 
 ```bash
+cd infra
 docker compose up -d
 ```
 
@@ -14,7 +15,7 @@ To access the browser explorer for Cosmos DB emulator:
 https://localhost:8081/_explorer/index.html
 ```
 
-You must install one of the certificates located in /certs. 
+You must install one of the certificates located in /certs
 
 ### Windows
 
@@ -44,4 +45,22 @@ sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keyc
 ```bash
 sudo cp emulator.pem /usr/local/share/ca-certificates/emulator.crt
 sudo update-ca-certificates
+```
+
+## Seed DB
+
+Create a venv if you haven't yet using the dependencies in /cosmosdb.
+
+```bash
+cd ..
+# start venv from cosmosdb
+source cosmosdb/.venv/Scripts/activate
+cd infra
+py init.py
+```
+
+## Navigate to form
+
+```bash
+http://localhost:8080/
 ```
