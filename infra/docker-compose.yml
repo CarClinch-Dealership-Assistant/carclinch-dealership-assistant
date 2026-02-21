@@ -1,5 +1,8 @@
 name: email-processing
 services:
+# ------------
+# azure service emulators
+# ------------
   # azurite emulator
   azurite:
     container_name: "azurite"
@@ -9,7 +12,8 @@ services:
       - "10001:10001"
       - "10002:10002"
     networks:
-      - sb-emulator
+      - dealership-assistant
+
   # service bus emulator
   emulator:
     container_name: "servicebus-emulator"
@@ -29,7 +33,8 @@ services:
     depends_on:
       - mssql
     networks:
-      - sb-emulator
+      - dealership-assistant
+
   # mssql server for service bus emulator
   mssql:
     container_name: "mssql"
@@ -38,46 +43,85 @@ services:
       ACCEPT_EULA: ${ACCEPT_EULA}
       MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD}"
     networks:
-      - sb-emulator
+      - dealership-assistant
+
   # cosmos db emulator
   cosmosdb:
     container_name: "cosmosdb-emulator"
     image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator
     restart: always
     environment:
-      AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 3
+      AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 5
       AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: "true"
-      AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE: "0.0.0.0"
+      AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE: ${AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE:-"0.0.0.0"}
     ports:
-      - "8081:8081"     # HTTPS endpoint
+      - "8081:8081"
       - "10255:10255"
       - "10251:10251"
       - "10252:10252"
       - "10253:10253"
       - "10254:10254"
     networks:
-      - sb-emulator
+      - dealership-assistant
 
-  # email processing service, pulled from org Docker Hub image
+# ------------
+# application services
+# ------------
+  # email processing service
   email-processing-service:
     container_name: "email-processing-service"
     image: carclinchda/email-processing-service:latest
     pull_policy: always
     environment:
-      AzureWebJobsStorage: "UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite"
       FUNCTIONS_WORKER_RUNTIME_VERSION: "3.12"
       AZURE_FUNCTIONS_ENVIRONMENT: "Development"
       WEBSITE_HOSTNAME: "localhost:80"
-      AzureWebJobsServiceBus: "Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
-      ACS_CONNECTION_STRING: "${ACS_CONNECTION_STRING}"
+      AzureWebJobsStorage: "UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite"
+      AzureWebJobsServiceBus: ${SB_CONNECTION_STRING}
+      ACS_CONNECTION_STRING: ${ACS_CONNECTION_STRING}
       SENDER_ADDRESS: "${SENDER_ADDRESS}"
-      COSMOS_CONNECTION_STRING: "${COSMOS_DB_CONNECTION_STRING}"
+      COSMOS_CONNECTION_STRING: ${COSMOS_DB_CONNECTION_STRING}
     depends_on:
       - emulator
       - azurite
       - cosmosdb
     networks:
-      - sb-emulator
+      - dealership-assistant
+
+  # form backend function
+  backend:
+    container_name: "form-backend-service"
+    image: carclinchda/form-backend-service:latest
+    pull_policy: always
+    ports:
+      - "7071:80"
+    environment:
+      FUNCTIONS_WORKER_RUNTIME_VERSION: "3.12"
+      AZURE_FUNCTIONS_ENVIRONMENT: "Development"
+      WEBSITE_HOSTNAME: "localhost:80"
+      AzureWebJobsStorage: ${STORAGE_CONNECTION_STRING}
+      COSMOS_ENDPOINT: "${COSMOS_ENDPOINT}"
+      COSMOS_KEY: "${COSMOS_KEY}"
+      COSMOS_DATABASE: "${COSMOS_DATABASE:-dealership}"
+      SERVICE_BUS_CONNECTION_STRING: ${SB_CONNECTION_STRING}
+    depends_on:
+      - emulator
+      - azurite
+      - cosmosdb
+    networks:
+      - dealership-assistant
+
+  # form frontend service
+  frontend:
+    container_name: "form-frontend-service"
+    image: carclinchda/form-frontend-service:latest
+    pull_policy: always
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - dealership-assistant
 
 networks:
-  sb-emulator:
+  dealership-assistant:
