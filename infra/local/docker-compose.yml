@@ -81,6 +81,7 @@ services:
       ACS_CONNECTION_STRING: ${ACS_CONNECTION_STRING}
       SENDER_ADDRESS: "${SENDER_ADDRESS}"
       COSMOS_CONNECTION_STRING: ${COSMOS_CONNECTION_STRING}
+      COSMOS_DB_NAME: "${COSMOS_DATABASE:-CarClinchDB}"
     depends_on:
       - service-bus
       - azurite
