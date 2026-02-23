@@ -97,9 +97,9 @@ VEHICLES = [
         "make": "Ford",
         "model": "Fusion",
         "trim": "SEL",
-        "mileage": "60000",
+        "mileage": "0",
         "transmission": "Manual",
-        "comments": "Recently serviced"
+        "comments": "No previous owners, just serviced"
     }
 ]
 
@@ -384,7 +384,7 @@ def main():
             id=c["id"],
             partition_key=PartitionKey(path=c["pk"])
         )
-        time.sleep(3)
+        # time.sleep(3)
         print(f"Container '{c['id']}' is ready.")
         # upload stored procedures where relevant
         if c["id"] == "messages":

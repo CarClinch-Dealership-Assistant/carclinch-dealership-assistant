@@ -1,9 +1,11 @@
 # Docker Compose - EVERYTHING!!!
 
-## Docker Compose
+## Venv & Docker Compose
 
 ```bash
-cd infra
+# start venv from cosmosdb
+source cosmosdb/.venv/Scripts/activate
+cd infra/local
 docker compose up -d
 ```
 
@@ -11,9 +13,7 @@ docker compose up -d
 
 To access the browser explorer for Cosmos DB emulator:
 
-```bash
 https://localhost:8081/_explorer/index.html
-```
 
 You must install one of the certificates located in /certs
 
@@ -49,18 +49,12 @@ sudo update-ca-certificates
 
 ## Seed DB
 
-Create a venv if you haven't yet using the dependencies in /cosmosdb.
+Make sure to set `AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE` to your local IP esp on Windows.
 
 ```bash
-cd ..
-# start venv from cosmosdb
-source cosmosdb/.venv/Scripts/activate
-cd infra
 py init.py
 ```
 
 ## Navigate to form
 
-```bash
 http://localhost:8080/
-```
