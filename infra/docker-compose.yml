@@ -68,7 +68,7 @@ services:
 # application services
 # ------------
   # email processing service
-  email-processing-service:
+  email-processing:
     container_name: "email-processing-service"
     image: carclinchda/email-processing-service:latest
     pull_policy: always
@@ -80,7 +80,7 @@ services:
       AzureWebJobsServiceBus: ${SB_CONNECTION_STRING}
       ACS_CONNECTION_STRING: ${ACS_CONNECTION_STRING}
       SENDER_ADDRESS: "${SENDER_ADDRESS}"
-      COSMOS_CONNECTION_STRING: ${COSMOS_DB_CONNECTION_STRING}
+      COSMOS_CONNECTION_STRING: ${COSMOS_CONNECTION_STRING}
     depends_on:
       - service-bus
       - azurite
@@ -88,7 +88,7 @@ services:
     networks:
       - dealership-assistant
 
-  # form backend function
+  # form backend service
   form-backend:
     container_name: "form-backend-service"
     image: carclinchda/form-backend-service:latest
@@ -102,7 +102,7 @@ services:
       AzureWebJobsStorage: ${STORAGE_CONNECTION_STRING}
       COSMOS_ENDPOINT: "${COSMOS_ENDPOINT}"
       COSMOS_KEY: "${COSMOS_KEY}"
-      COSMOS_DATABASE: "${COSMOS_DATABASE:-dealership}"
+      COSMOS_DATABASE: "${COSMOS_DATABASE:-CarClinchDB}"
       SERVICE_BUS_CONNECTION_STRING: ${SB_CONNECTION_STRING}
     depends_on:
       - service-bus
