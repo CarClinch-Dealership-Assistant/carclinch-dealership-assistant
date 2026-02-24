@@ -1,7 +1,7 @@
 name: sprint1-core-email
 services:
 # ------------
-# azure service emulators
+# azure service emulators10.70.137.53
 # ------------
   # azurite emulator
   azurite:

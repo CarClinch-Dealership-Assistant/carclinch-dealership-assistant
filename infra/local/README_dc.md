@@ -1,10 +1,23 @@
 # Docker Compose - EVERYTHING!!!
 
-## Venv & Docker Compose
+## Env Setup
+
+Copy contents of `.env.copy` into `.env`. To run the `init.py` script, be sure to set the `AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE` to your machine's LAN IP. You can find it by running:
+
+```bash
+ipconfig
+```
+
+Then:
 
 ```bash
 # start venv from cosmosdb
 source cosmosdb/.venv/Scripts/activate
+```
+
+## Docker Compose
+
+```bash
 cd infra/local
 docker compose up -d
 ```
