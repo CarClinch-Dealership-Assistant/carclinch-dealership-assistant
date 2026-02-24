@@ -19,7 +19,10 @@ load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # cosmos db emulator defaults, not sensitive since it's local development only
-ENDPOINT = "https://192.168.50.40:8081/"
+# if you want to connect to the emulator from another machine, 
+# set the AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE env variable to the IP address of the machine 
+# running the emulator (e.g. your host machine if using docker desktop)
+ENDPOINT = f"https://{os.getenv('AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE', 'localhost')}:8081/"
 KEY = os.getenv("COSMOS_KEY", "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==") 
 
 DB_NAME = "CarClinchDB"
