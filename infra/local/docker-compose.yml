@@ -70,7 +70,7 @@ services:
   # email processing service
   email-processing:
     container_name: "email-processing-service"
-    image: carclinchda/email-processing-service:latest
+    image: carclinchda/email-processing-service:smtp
     pull_policy: always
     environment:
       FUNCTIONS_WORKER_RUNTIME_VERSION: "3.12"
@@ -82,6 +82,11 @@ services:
       SENDER_ADDRESS: "${SENDER_ADDRESS}"
       COSMOS_CONNECTION_STRING: ${COSMOS_CONNECTION_STRING}
       COSMOS_DB_NAME: "${COSMOS_DATABASE:-CarClinchDB}"
+      COSMOS_DB_CONTAINER: "${COSMOS_CONTAINER:-messages}"
+      GMAIL_USER: "${GMAIL_USER}"
+      GMAIL_APP_PASSWORD: "${GMAIL_APP_PASSWORD}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      OPENAI_BASE_URL: "${OPENAI_BASE_URL}"
     depends_on:
       - service-bus
       - azurite
@@ -115,7 +120,7 @@ services:
   # form frontend service
   form-frontend:
     container_name: "form-frontend-service"
-    image: carclinchda/form-frontend-service:latest
+    image: carclinchda/form-frontend-service:decoupled
     pull_policy: always
     ports:
       - "8080:80"
