@@ -7,6 +7,11 @@ Copy contents of `.env.copy` into `.env`. To run the `init.py` script, be sure t
 ```bash
 ipconfig
 ```
+To find the OPENAI env variables, make sure to create the Foundry resource, deploy the gpt-4.1-mini model, and find the values in `Foundry` -> `Playgrounds` -> `View Code` -> Scroll down and copy paste the key and URL values.
+
+Create an app password for your personal Gmail inbox by going to `Manage your Google Account` -> `Security & sign-in` -> Search `App passwords` -> Create a new one
+
+The GMAIL values are your email address and that created app password with no spaces.
 
 Then:
 
