@@ -68,6 +68,18 @@ Make sure to set `AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE` to your local IP es
 py init.py
 ```
 
-## Navigate to form
+## Navigate
+
+### CosmosDB: Bypass Certificate
+
+If none of the above certificate assignment works, go to:
+
+https://localhost:8081/_explorer/index.html
+
+And click the following options:
+
+<img width="1342" height="850" alt="image" src="https://github.com/user-attachments/assets/1ec4a030-8009-46ef-9887-ff1f1ea29882" />
+
+### Web Form
 
 http://localhost:8080/
