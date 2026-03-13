@@ -4,6 +4,7 @@
 
 1. Run:
 ```
+terraform init
 terraform apply
 ```
 2. Set your Gmail app password & email address.
