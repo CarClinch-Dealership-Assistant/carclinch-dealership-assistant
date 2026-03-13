@@ -1,57 +1,74 @@
+# == Core ======================================================================
 variable "prefix" {
-  description = "Short prefix for all resource names, e.g. 'cc'. Set via -var or TF_VAR_prefix."
   type        = string
-  validation {
-    condition     = can(regex("^[a-z0-9]{2,10}$", var.prefix))
-    error_message = "Prefix must be 2-10 lowercase alphanumeric characters."
-  }
+  description = "Short prefix used in all resource names"
 }
 
 variable "environment" {
-  description = "Environment label used in resource names and tags."
   type        = string
+  description = "Deployment environment (dev, staging, prod)"
   default     = "dev"
 }
 
 variable "location" {
-  description = "Azure region for all resources."
   type        = string
+  description = "Primary Azure region for all resources"
   default     = "canadacentral"
 }
 
-# ── Docker images ─────────────────────────────────────────────────────────────
-variable "frontend_image" {
-  description = "DockerHub image for the frontend App Service (HTML/CSS/JS)."
-  type        = string
-  default     = "carclinchda/form-frontend-service:sprint1-v2"
-}
-
-variable "backend_image" {
-  description = "DockerHub image for the backend Azure Function (Python 3.12)."
-  type        = string
-  default     = "carclinchda/form-backend-service:sprint1"
-}
-
-variable "email_image" {
-  description = "DockerHub image for the email-processing Durable Function (Python 3.12)."
-  type        = string
-  default     = "carclinchda/email-processing-service:sprint1"
-}
-
-# ── App config ────────────────────────────────────────────────────────────────
-variable "cosmos_database" {
-  description = "Cosmos DB SQL database name."
-  type        = string
-  default     = "CarClinchDB"
-}
-
 variable "tags" {
-  description = "Extra tags merged onto every resource."
   type        = map(string)
+  description = "Extra tags to merge onto all resources"
   default     = {}
 }
 
+# == Network ===================================================================
 variable "terraform_client_ip" {
-  description = "Your local public IP so Terraform can write secrets to Key Vault. Find it at https://ifconfig.me"
   type        = string
+  description = "Your public IP; added to Cosmos DB IP allowlist so Terraform can seed data. Find it at https://ifconfig.me"
+}
+
+# == Frontend ==================================================================
+variable "frontend_image" {
+  type        = string
+  description = "Docker image for the frontend"
+  default     = "carclinchda/form-frontend-service:latest"
+}
+
+# == Cosmos DB =================================================================
+variable "cosmos_db_name" {
+  type        = string
+  description = "Cosmos DB database name"
+  default     = "CarClinchDB"
+}
+
+# == Gmail =====================================================================
+variable "gmail_user" {
+  type        = string
+  description = "Gmail address used by the email function (e.g. yourapp@gmail.com)"
+}
+
+variable "gmail_app_password" {
+  type        = string
+  sensitive   = true
+  description = "Gmail App Password (not your account password — generate one at myaccount.google.com/apppasswords)"
+}
+
+# == Azure AI Foundry ==========================================================
+variable "foundry_location" {
+  type        = string
+  description = "Region for the Azure AI Foundry resource. eastus2 recommended for broadest model availability"
+  default     = "eastus2"
+}
+
+variable "foundry_model_name" {
+  type        = string
+  description = "Model deployment name and model name (e.g. gpt-4.1-mini)"
+  default     = "gpt-4.1-mini"
+}
+
+variable "foundry_model_version" {
+  type        = string
+  description = "Model version to deploy"
+  default     = "2025-04-14"
 }

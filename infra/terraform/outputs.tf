@@ -1,39 +1,70 @@
-output "resource_group" {
-  description = "Resource group name"
-  value       = azurerm_resource_group.main.name
-}
-
+# == URLs ======================================================================
 output "frontend_url" {
-  description = "Frontend App Service URL"
   value       = "https://${azurerm_linux_web_app.frontend.default_hostname}"
+  description = "Frontend app URL"
 }
 
 output "backend_url" {
-  description = "Backend Function App URL"
-  value       = "https://${azurerm_linux_function_app.backend.default_hostname}"
+  value       = "https://${azurerm_linux_function_app.backend.default_hostname}/api"
+  description = "Backend function app base URL"
 }
 
-output "email_url" {
-  description = "Email Processing Function App URL"
-  value       = "https://${azurerm_linux_function_app.email.default_hostname}"
+# == Resource names (useful for CLI commands) ==================================
+output "backend_function_app_name" {
+  value       = azurerm_linux_function_app.backend.name
+  description = "Used in: func azure functionapp publish <name> --python"
 }
 
+output "email_function_app_name" {
+  value       = azurerm_linux_function_app.email.name
+  description = "Used in: func azure functionapp publish <name> --python"
+}
+
+output "resource_group_main" {
+  value = azurerm_resource_group.main.name
+}
+
+output "resource_group_func" {
+  value = azurerm_resource_group.func.name
+}
+
+# == Cosmos ====================================================================
 output "cosmos_endpoint" {
-  description = "Cosmos DB endpoint"
   value       = azurerm_cosmosdb_account.main.endpoint
+  description = "Set as COSMOS_ENDPOINT in local.settings.json for local dev (use key for auth locally)"
 }
 
-output "servicebus_hostname" {
-  description = "Service Bus namespace hostname"
+output "cosmos_primary_key" {
+  value       = azurerm_cosmosdb_account.main.primary_key
+  sensitive   = true
+  description = "Use as COSMOS_CONNECTION_STRING locally; MI is used in Azure"
+}
+
+# == Service Bus ===============================================================
+output "servicebus_connection_string" {
+  value       = azurerm_servicebus_namespace_authorization_rule.apps.primary_connection_string
+  sensitive   = true
+  description = "Use as SB_CONNECTION_STRING in local.settings.json for local dev"
+}
+
+output "servicebus_namespace" {
   value       = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
+  description = "Fully qualified Service Bus namespace"
 }
 
-output "keyvault_uri" {
-  description = "Key Vault URI"
-  value       = azurerm_key_vault.main.vault_uri
+# == AI Foundry ================================================================
+output "foundry_endpoint" {
+  value       = azurerm_cognitive_account.foundry.endpoint
+  description = "Azure AI Foundry endpoint; auto-stored in Key Vault as OPENAI-BASE-URL"
 }
 
-output "storage_account_name" {
-  description = "Storage account used by Functions"
-  value       = azurerm_storage_account.main.name
+output "foundry_model_name" {
+  value       = var.foundry_model_name
+  description = "Deployment name to use as OPENAI_MODEL_NAME in local.settings.json"
+}
+
+# == Key Vault =================================================================
+output "key_vault_name" {
+  value       = azurerm_key_vault.main.name
+  description = "Key Vault name; useful for az keyvault secret list --vault-name <name>"
 }

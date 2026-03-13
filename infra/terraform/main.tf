@@ -14,9 +14,9 @@ provider "azurerm" {
       purge_soft_delete_on_destroy    = true
       recover_soft_deleted_key_vaults = true
     }
-│   resource_group {
-│      prevent_deletion_if_contains_resources = false
-│   }
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
   }
 }
 
@@ -39,14 +39,12 @@ locals {
 }
 
 # == Resource Groups ===========================================================
-# main: frontend, shared services (KV, ACS, Cosmos, Service Bus)
 resource "azurerm_resource_group" "main" {
   name     = "${local.p}-rg-${local.env}"
   location = local.loc
   tags     = local.tags
 }
 
-# func: Consumption function apps + their storage/plan/insights
 # Kept separate bc Azure locks a RG's App Service feature set on first plan
 # creation; mixing B1 Linux and Y1 Linux Consumption in one RG is rejected.
 resource "azurerm_resource_group" "func" {
@@ -55,7 +53,7 @@ resource "azurerm_resource_group" "func" {
   tags     = local.tags
 }
 
-# == Storage (required by Azure Functions) ====================================
+# == Storage (required by Azure Functions) =====================================
 resource "azurerm_storage_account" "main" {
   name                            = local.storage_name
   resource_group_name             = azurerm_resource_group.func.name
@@ -73,35 +71,6 @@ resource "azurerm_storage_account" "main" {
   }
 
   tags = local.tags
-}
-
-# == Azure Communication Services ==============================================
-# We will remove this in the sprint 2 iteration
-resource "azurerm_communication_service" "main" {
-  name                = "${local.p}-acs-${local.env}"
-  resource_group_name = azurerm_resource_group.main.name
-  data_location       = "Canada"
-  tags                = local.tags
-}
-
-resource "azurerm_email_communication_service" "main" {
-  name                = "${local.p}-acs-email-${local.env}"
-  resource_group_name = azurerm_resource_group.main.name
-  data_location       = "Canada"
-  tags                = local.tags
-}
-
-# Azure-managed domain; no DNS setup required, ready to send immediately
-resource "azurerm_email_communication_service_domain" "azure" {
-  name              = "AzureManagedDomain"
-  email_service_id  = azurerm_email_communication_service.main.id
-  domain_management = "AzureManaged"
-  tags              = local.tags
-}
-
-resource "azurerm_communication_service_email_domain_association" "main" {
-  communication_service_id = azurerm_communication_service.main.id
-  email_service_domain_id  = azurerm_email_communication_service_domain.azure.id
 }
 
 # == Cosmos DB (serverless) ====================================================
@@ -128,7 +97,7 @@ resource "azurerm_cosmosdb_account" "main" {
 }
 
 resource "azurerm_cosmosdb_sql_database" "main" {
-  name                = var.cosmos_database
+  name                = var.cosmos_db_name
   resource_group_name = azurerm_resource_group.main.name
   account_name        = azurerm_cosmosdb_account.main.name
 }
@@ -145,7 +114,7 @@ resource "null_resource" "cosmos_seed" {
     environment = {
       COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
       COSMOS_KEY      = azurerm_cosmosdb_account.main.primary_key
-      COSMOS_DATABASE = var.cosmos_database
+      COSMOS_DATABASE = var.cosmos_db_name
     }
   }
 
@@ -209,13 +178,6 @@ resource "azurerm_key_vault_access_policy" "terraform" {
 }
 
 # Allow app managed identities to read secrets
-resource "azurerm_key_vault_access_policy" "frontend" {
-  key_vault_id       = azurerm_key_vault.main.id
-  tenant_id          = data.azurerm_client_config.current.tenant_id
-  object_id          = azurerm_linux_web_app.frontend.identity[0].principal_id
-  secret_permissions = ["Get", "List"]
-}
-
 resource "azurerm_key_vault_access_policy" "backend" {
   key_vault_id       = azurerm_key_vault.main.id
   tenant_id          = data.azurerm_client_config.current.tenant_id
@@ -228,6 +190,71 @@ resource "azurerm_key_vault_access_policy" "email" {
   tenant_id          = data.azurerm_client_config.current.tenant_id
   object_id          = azurerm_linux_function_app.email.identity[0].principal_id
   secret_permissions = ["Get", "List"]
+}
+
+# == Key Vault secrets =========================================================
+
+# Gmail credentials; provided via vars, never stored in state plaintext
+resource "azurerm_key_vault_secret" "gmail_user" {
+  name         = "GMAIL-USER"
+  value        = var.gmail_user
+  key_vault_id = azurerm_key_vault.main.id
+  tags         = local.tags
+  depends_on   = [azurerm_key_vault_access_policy.terraform]
+}
+
+resource "azurerm_key_vault_secret" "gmail_app_password" {
+  name         = "GMAIL-APP-PASSWORD"
+  value        = var.gmail_app_password
+  key_vault_id = azurerm_key_vault.main.id
+  tags         = local.tags
+  depends_on   = [azurerm_key_vault_access_policy.terraform]
+}
+
+# Foundry key & endpoint auto-populated from provisioned resource; no manual copy needed
+resource "azurerm_key_vault_secret" "openai_api_key" {
+  name         = "OPENAI-API-KEY"
+  value        = azurerm_cognitive_account.foundry.primary_access_key
+  key_vault_id = azurerm_key_vault.main.id
+  tags         = local.tags
+  depends_on   = [azurerm_key_vault_access_policy.terraform]
+}
+
+resource "azurerm_key_vault_secret" "openai_base_url" {
+  name         = "OPENAI-BASE-URL"
+  value        = "${azurerm_cognitive_account.foundry.endpoint}openai/v1/"
+  key_vault_id = azurerm_key_vault.main.id
+  tags         = local.tags
+  depends_on   = [azurerm_key_vault_access_policy.terraform]
+}
+
+# == Microsoft Foundry =======================================================
+resource "azurerm_cognitive_account" "foundry" {
+  name                = "${local.p}-foundry-${local.env}"
+  location            = var.foundry_location # eastus2 rec for model availability
+  resource_group_name = azurerm_resource_group.main.name
+  kind                = "OpenAI"
+  sku_name            = "S0"
+
+  public_network_access_enabled = true
+
+  tags = local.tags
+}
+
+resource "azurerm_cognitive_deployment" "gpt" {
+  name                 = var.foundry_model_name
+  cognitive_account_id = azurerm_cognitive_account.foundry.id
+
+  model {
+    format  = "OpenAI"
+    name    = var.foundry_model_name
+    version = var.foundry_model_version
+  }
+
+  scale {
+    type     = "DataZoneStandard"
+    capacity = 10
+  }
 }
 
 # == Managed Identity RBAC assignments =========================================
@@ -263,7 +290,6 @@ resource "azurerm_role_assignment" "email_sb_receiver" {
 }
 
 # Storage; both functions need blob + queue + table for the Functions runtime
-# (blob: deployment packages; queue+table: Durable Functions/internal runtime state)
 resource "azurerm_role_assignment" "backend_storage_blob" {
   scope                = azurerm_storage_account.main.id
   role_definition_name = "Storage Blob Data Contributor"
@@ -300,24 +326,6 @@ resource "azurerm_role_assignment" "email_storage_table" {
   principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
 }
 
-# == Key Vault secrets =========================================================
-# Only ACS secrets; everything else uses managed identity
-resource "azurerm_key_vault_secret" "acs_connection_string" {
-  name         = "ACS-CONNECTION-STRING"
-  value        = azurerm_communication_service.main.primary_connection_string
-  key_vault_id = azurerm_key_vault.main.id
-  tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
-}
-
-resource "azurerm_key_vault_secret" "sender_address" {
-  name         = "SENDER-ADDRESS"
-  value        = "DoNotReply@${azurerm_email_communication_service_domain.azure.mail_from_sender_domain}"
-  key_vault_id = azurerm_key_vault.main.id
-  tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
-}
-
 # == App Insights ==============================================================
 resource "azurerm_log_analytics_workspace" "main" {
   name                = "${local.p}-law-${local.env}"
@@ -347,7 +355,6 @@ resource "azurerm_application_insights" "email" {
 }
 
 # == App Service Plan (Frontend) ===============================================
-# Frontend stays on a dedicated plan in the main RG; B1 Linux.
 resource "azurerm_service_plan" "frontend" {
   name                = "${local.p}-plan-frontend-${local.env}"
   location            = azurerm_resource_group.main.location
@@ -358,7 +365,6 @@ resource "azurerm_service_plan" "frontend" {
 }
 
 # == App Service Plan (Functions; Consumption) =================================
-# In func RG so Azure doesn't conflict B1 w/ Y1 Linux feature sets.
 resource "azurerm_service_plan" "main" {
   name                = "${local.p}-plan-${local.env}"
   location            = azurerm_resource_group.func.location
@@ -435,19 +441,15 @@ resource "azurerm_linux_function_app" "backend" {
   }
 
   app_settings = {
-    FUNCTIONS_WORKER_RUNTIME = "python"
+    FUNCTIONS_WORKER_RUNTIME       = "python"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
 
     APPINSIGHTS_INSTRUMENTATIONKEY        = azurerm_application_insights.backend.instrumentation_key
     APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.backend.connection_string
 
-    # ACS; no managed identity support, stays as KV reference
-    ACS_CONNECTION_STRING = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=ACS-CONNECTION-STRING)"
-    SENDER_ADDRESS        = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=SENDER-ADDRESS)"
-
     # Cosmos; endpoint only, managed identity handles auth
     COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
-    COSMOS_DATABASE = var.cosmos_database
+    COSMOS_DB_NAME = var.cosmos_db_name
 
     # Service Bus; namespace hostname only, managed identity handles auth
     SB_NAMESPACE = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
@@ -494,21 +496,29 @@ resource "azurerm_linux_function_app" "email" {
     APPINSIGHTS_INSTRUMENTATIONKEY        = azurerm_application_insights.email.instrumentation_key
     APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.email.connection_string
 
-    # ACS; no managed identity support, stays as KV reference
-    ACS_CONNECTION_STRING = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=ACS-CONNECTION-STRING)"
-    SENDER_ADDRESS        = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=SENDER-ADDRESS)"
-
     # Cosmos; endpoint only, managed identity handles auth
     COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
-    COSMOS_DATABASE = var.cosmos_database
+    COSMOS_DB_NAME = var.cosmos_db_name
 
     # Service Bus; namespace hostname only, managed identity handles auth
     SB_NAMESPACE = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
 
     # Storage account name surfaced to app code; auth via managed identity
     STORAGE_ACCOUNT_NAME = azurerm_storage_account.main.name
+
+    # Gmail credentials via KV references
+    GMAIL_USER         = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=GMAIL-USER)"
+    GMAIL_APP_PASSWORD = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=GMAIL-APP-PASSWORD)"
+
+    # Azure AI Foundry; key + endpoint auto-wired from provisioned resource via KV
+    OPENAI_API_KEY    = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=OPENAI-API-KEY)"
+    OPENAI_BASE_URL   = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=OPENAI-BASE-URL)"
+    OPENAI_MODEL_NAME = var.foundry_model_name
   }
 
-  tags       = local.tags
-  depends_on = [azurerm_key_vault_access_policy.terraform]
+  tags = local.tags
+  depends_on = [
+    azurerm_key_vault_access_policy.terraform,
+    azurerm_cognitive_deployment.gpt,
+  ]
 }
