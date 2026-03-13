@@ -19,7 +19,7 @@ provider "azurerm" {
 
 data "azurerm_client_config" "current" {}
 
-# ── Locals: naming + tags ─────────────────────────────────────────────────────
+# == Locals: naming + tags =====================================================
 locals {
   p   = var.prefix
   env = var.environment
@@ -35,18 +35,28 @@ locals {
   storage_name = substr("${local.p}st${local.env}", 0, 24)
 }
 
-# ── Resource Group ────────────────────────────────────────────────────────────
+# == Resource Groups ===========================================================
+# main: frontend, shared services (KV, ACS, Cosmos, Service Bus)
 resource "azurerm_resource_group" "main" {
   name     = "${local.p}-rg-${local.env}"
   location = local.loc
   tags     = local.tags
 }
 
-# ── Storage (required by Azure Functions) ────────────────────────────────────
+# func: Consumption function apps + their storage/plan/insights
+# Kept separate because Azure locks a RG's App Service feature set on first plan
+# creation — mixing B1 Linux and Y1 Linux Consumption in one RG is rejected.
+resource "azurerm_resource_group" "func" {
+  name     = "${local.p}-func-rg-${local.env}"
+  location = local.loc
+  tags     = local.tags
+}
+
+# == Storage (required by Azure Functions) ====================================
 resource "azurerm_storage_account" "main" {
   name                            = local.storage_name
-  resource_group_name             = azurerm_resource_group.main.name
-  location                        = azurerm_resource_group.main.location
+  resource_group_name             = azurerm_resource_group.func.name
+  location                        = azurerm_resource_group.func.location
   account_tier                    = "Standard"
   account_replication_type        = "LRS"
   https_traffic_only_enabled      = true
@@ -54,18 +64,17 @@ resource "azurerm_storage_account" "main" {
   allow_nested_items_to_be_public = false
   public_network_access_enabled   = true
 
-  # Allow Azure services (Functions runtime) + Terraform client IP
+  # Consumption workers run on dynamic infra not covered by AzureServices bypass;
+  # the host storage connection requires open access on Linux Consumption.
   network_rules {
-    default_action = "Deny"
+    default_action = "Allow"
     bypass         = ["AzureServices"]
-    ip_rules       = [var.terraform_client_ip]
   }
 
   tags = local.tags
 }
 
-# ── Azure Communication Services ──────────────────────────────────────────────
-# Terraform provisions ACS and extracts the connection string automatically.
+# == Azure Communication Services ==============================================
 resource "azurerm_communication_service" "main" {
   name                = "${local.p}-acs-${local.env}"
   resource_group_name = azurerm_resource_group.main.name
@@ -80,7 +89,7 @@ resource "azurerm_email_communication_service" "main" {
   tags                = local.tags
 }
 
-# Azure-managed domain — no DNS setup required, ready to send immediately
+# Azure-managed domain; no DNS setup required, ready to send immediately
 resource "azurerm_email_communication_service_domain" "azure" {
   name              = "AzureManagedDomain"
   email_service_id  = azurerm_email_communication_service.main.id
@@ -88,13 +97,12 @@ resource "azurerm_email_communication_service_domain" "azure" {
   tags              = local.tags
 }
 
-# Link the email domain to the communication service
 resource "azurerm_communication_service_email_domain_association" "main" {
   communication_service_id = azurerm_communication_service.main.id
   email_service_domain_id  = azurerm_email_communication_service_domain.azure.id
 }
 
-# ── Cosmos DB (serverless — no minimum RU charge) ─────────────────────────────
+# == Cosmos DB (serverless) ====================================================
 resource "azurerm_cosmosdb_account" "main" {
   name                = "${local.p}-cosmos-${local.env}"
   location            = azurerm_resource_group.main.location
@@ -102,8 +110,6 @@ resource "azurerm_cosmosdb_account" "main" {
   offer_type          = "Standard"
   kind                = "GlobalDocumentDB"
 
-  # Public access on so Terraform seed script and apps can reach it.
-  # ip_range_filter restricts to Azure datacenter IPs + your client IP.
   public_network_access_enabled = true
   ip_range_filter               = "${var.terraform_client_ip},0.0.0.0"
 
@@ -125,10 +131,7 @@ resource "azurerm_cosmosdb_sql_database" "main" {
   account_name        = azurerm_cosmosdb_account.main.name
 }
 
-# ── Cosmos DB seed ────────────────────────────────────────────────────────────
-# Runs init.py from the same directory once after the database is provisioned.
-# Trigger is the Cosmos endpoint — only re-runs if the account is replaced.
-# init.py uses upsert_item so re-runs are safe.
+# == Cosmos DB seed ============================================================
 resource "null_resource" "cosmos_seed" {
   triggers = {
     cosmos_endpoint = azurerm_cosmosdb_account.main.endpoint
@@ -147,7 +150,7 @@ resource "null_resource" "cosmos_seed" {
   depends_on = [azurerm_cosmosdb_sql_database.main]
 }
 
-# ── Service Bus (Standard — private endpoints require Premium, use network rules) ─
+# == Service Bus ===============================================================
 resource "azurerm_servicebus_namespace" "main" {
   name                          = "${local.p}-sb-${local.env}"
   location                      = azurerm_resource_group.main.location
@@ -167,7 +170,7 @@ resource "azurerm_servicebus_queue" "leads" {
   dead_lettering_on_message_expiration = true
 }
 
-# Least-privilege send+listen rule for apps (no manage)
+# Kept for local dev / fallback; managed identity is used in Azure
 resource "azurerm_servicebus_namespace_authorization_rule" "apps" {
   name         = "apps-send-listen"
   namespace_id = azurerm_servicebus_namespace.main.id
@@ -176,7 +179,7 @@ resource "azurerm_servicebus_namespace_authorization_rule" "apps" {
   manage       = false
 }
 
-# ── Key Vault ─────────────────────────────────────────────────────────────────
+# == Key Vault =================================================================
 resource "azurerm_key_vault" "main" {
   name                          = local.kv_name
   location                      = azurerm_resource_group.main.location
@@ -225,7 +228,79 @@ resource "azurerm_key_vault_access_policy" "email" {
   secret_permissions = ["Get", "List"]
 }
 
-# ── Key Vault secrets — all sourced from provisioned resources, zero manual input ──
+# == Managed Identity RBAC assignments =========================================
+
+# Cosmos DB; built-in data contributor role (id ending in ...0002)
+resource "azurerm_cosmosdb_sql_role_assignment" "backend" {
+  resource_group_name = azurerm_resource_group.main.name
+  account_name        = azurerm_cosmosdb_account.main.name
+  role_definition_id  = "${azurerm_cosmosdb_account.main.id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002"
+  principal_id        = azurerm_linux_function_app.backend.identity[0].principal_id
+  scope               = azurerm_cosmosdb_account.main.id
+}
+
+resource "azurerm_cosmosdb_sql_role_assignment" "email" {
+  resource_group_name = azurerm_resource_group.main.name
+  account_name        = azurerm_cosmosdb_account.main.name
+  role_definition_id  = "${azurerm_cosmosdb_account.main.id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002"
+  principal_id        = azurerm_linux_function_app.email.identity[0].principal_id
+  scope               = azurerm_cosmosdb_account.main.id
+}
+
+# Service Bus; sender for backend, receiver for email
+resource "azurerm_role_assignment" "backend_sb_sender" {
+  scope                = azurerm_servicebus_namespace.main.id
+  role_definition_name = "Azure Service Bus Data Sender"
+  principal_id         = azurerm_linux_function_app.backend.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "email_sb_receiver" {
+  scope                = azurerm_servicebus_namespace.main.id
+  role_definition_name = "Azure Service Bus Data Receiver"
+  principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
+}
+
+# Storage; both functions need blob + queue + table for the Functions runtime
+# (blob: deployment packages; queue+table: Durable Functions / internal runtime state)
+resource "azurerm_role_assignment" "backend_storage_blob" {
+  scope                = azurerm_storage_account.main.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_linux_function_app.backend.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "backend_storage_queue" {
+  scope                = azurerm_storage_account.main.id
+  role_definition_name = "Storage Queue Data Contributor"
+  principal_id         = azurerm_linux_function_app.backend.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "backend_storage_table" {
+  scope                = azurerm_storage_account.main.id
+  role_definition_name = "Storage Table Data Contributor"
+  principal_id         = azurerm_linux_function_app.backend.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "email_storage_blob" {
+  scope                = azurerm_storage_account.main.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "email_storage_queue" {
+  scope                = azurerm_storage_account.main.id
+  role_definition_name = "Storage Queue Data Contributor"
+  principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "email_storage_table" {
+  scope                = azurerm_storage_account.main.id
+  role_definition_name = "Storage Table Data Contributor"
+  principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
+}
+
+# == Key Vault secrets =========================================================
+# Only ACS secrets; everything else uses managed identity
+
 resource "azurerm_key_vault_secret" "acs_connection_string" {
   name         = "ACS-CONNECTION-STRING"
   value        = azurerm_communication_service.main.primary_connection_string
@@ -242,59 +317,11 @@ resource "azurerm_key_vault_secret" "sender_address" {
   depends_on   = [azurerm_key_vault_access_policy.terraform]
 }
 
-resource "azurerm_key_vault_secret" "sb_connection_string" {
-  name         = "SB-CONNECTION-STRING"
-  value        = azurerm_servicebus_namespace_authorization_rule.apps.primary_connection_string
-  key_vault_id = azurerm_key_vault.main.id
-  tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
-}
-
-resource "azurerm_key_vault_secret" "cosmos_connection_string" {
-  name         = "COSMOS-CONNECTION-STRING"
-  value        = azurerm_cosmosdb_account.main.primary_sql_connection_string
-  key_vault_id = azurerm_key_vault.main.id
-  tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
-}
-
-resource "azurerm_key_vault_secret" "cosmos_endpoint" {
-  name         = "COSMOS-ENDPOINT"
-  value        = azurerm_cosmosdb_account.main.endpoint
-  key_vault_id = azurerm_key_vault.main.id
-  tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
-}
-
-resource "azurerm_key_vault_secret" "cosmos_key" {
-  name         = "COSMOS-KEY"
-  value        = azurerm_cosmosdb_account.main.primary_key
-  key_vault_id = azurerm_key_vault.main.id
-  tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
-}
-
-resource "azurerm_key_vault_secret" "cosmos_database" {
-  name         = "COSMOS-DATABASE"
-  value        = var.cosmos_database
-  key_vault_id = azurerm_key_vault.main.id
-  tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
-}
-
-resource "azurerm_key_vault_secret" "storage_connection_string" {
-  name         = "STORAGE-CONNECTION-STRING"
-  value        = azurerm_storage_account.main.primary_connection_string
-  key_vault_id = azurerm_key_vault.main.id
-  tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
-}
-
-# ── App Insights ──────────────────────────────────────────────────────────────
+# == App Insights ==============================================================
 resource "azurerm_log_analytics_workspace" "main" {
   name                = "${local.p}-law-${local.env}"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.func.location
+  resource_group_name = azurerm_resource_group.func.name
   sku                 = "PerGB2018"
   retention_in_days   = 30
   tags                = local.tags
@@ -302,8 +329,8 @@ resource "azurerm_log_analytics_workspace" "main" {
 
 resource "azurerm_application_insights" "backend" {
   name                = "${local.p}-ai-backend-${local.env}"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.func.location
+  resource_group_name = azurerm_resource_group.func.name
   workspace_id        = azurerm_log_analytics_workspace.main.id
   application_type    = "web"
   tags                = local.tags
@@ -311,16 +338,17 @@ resource "azurerm_application_insights" "backend" {
 
 resource "azurerm_application_insights" "email" {
   name                = "${local.p}-ai-email-${local.env}"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.func.location
+  resource_group_name = azurerm_resource_group.func.name
   workspace_id        = azurerm_log_analytics_workspace.main.id
   application_type    = "web"
   tags                = local.tags
 }
 
-# ── App Service Plan (B1 — cheapest with container support) ──────────────────
-resource "azurerm_service_plan" "main" {
-  name                = "${local.p}-plan-${local.env}"
+# == App Service Plan (Frontend) ===============================================
+# Frontend stays on a dedicated plan in the main RG; B1 Linux.
+resource "azurerm_service_plan" "frontend" {
+  name                = "${local.p}-plan-frontend-${local.env}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   os_type             = "Linux"
@@ -328,18 +356,29 @@ resource "azurerm_service_plan" "main" {
   tags                = local.tags
 }
 
-# ── Frontend — App Service (HTML/CSS/JS container) ────────────────────────────
+# == App Service Plan (Functions; Consumption) =================================
+# In func RG so Azure doesn't conflict B1 + Y1 Linux feature sets.
+resource "azurerm_service_plan" "main" {
+  name                = "${local.p}-plan-${local.env}"
+  location            = azurerm_resource_group.func.location
+  resource_group_name = azurerm_resource_group.func.name
+  os_type             = "Linux"
+  sku_name            = "Y1"
+  tags                = local.tags
+}
+
+# == Frontend; App Service =====================================================
 resource "azurerm_linux_web_app" "frontend" {
   name                = "${local.p}-frontend-${local.env}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
-  service_plan_id     = azurerm_service_plan.main.id
+  service_plan_id     = azurerm_service_plan.frontend.id
   https_only          = true
 
   identity { type = "SystemAssigned" }
 
   site_config {
-    always_on           = false
+    always_on           = true
     ftps_state          = "Disabled"
     http2_enabled       = true
     minimum_tls_version = "1.2"
@@ -353,8 +392,8 @@ resource "azurerm_linux_web_app" "frontend" {
   app_settings = {
     WEBSITES_ENABLE_APP_SERVICE_STORAGE = "false"
     DOCKER_ENABLE_CI                    = "true"
-    BACKEND_URL                         = "https://${local.p}-backend-${local.env}.azurewebsites.net/api"
     WEBSITES_PORT                       = "80"
+    BACKEND_URL                         = "https://${local.p}-backend-${local.env}.azurewebsites.net/api"
   }
 
   logs {
@@ -364,58 +403,11 @@ resource "azurerm_linux_web_app" "frontend" {
   tags = local.tags
 }
 
-# ── Backend — Azure Function App (Python 3.12, HTTP-triggered) ────────────────
+# == Backend; Function App =====================================================
 resource "azurerm_linux_function_app" "backend" {
   name                       = "${local.p}-backend-${local.env}"
-  location                   = azurerm_resource_group.main.location
-  resource_group_name        = azurerm_resource_group.main.name
-  service_plan_id            = azurerm_service_plan.main.id
-  storage_account_name       = azurerm_storage_account.main.name
-  storage_account_access_key = azurerm_storage_account.main.primary_access_key
-  https_only                 = true
-
-  identity { type = "SystemAssigned" }
-
-  site_config {
-    always_on                               = false
-    ftps_state                              = "Disabled"
-    http2_enabled                           = true
-    minimum_tls_version                     = "1.2"
-    container_registry_use_managed_identity = false
-
-    application_stack { use_custom_runtime = true }
-  }
-
-  app_settings = {
-    FUNCTIONS_WORKER_RUNTIME            = "python"
-    WEBSITES_ENABLE_APP_SERVICE_STORAGE = "false"
-    DOCKER_ENABLE_CI                    = "true"
-    DOCKER_CUSTOM_IMAGE_NAME            = var.backend_image
-    DOCKER_REGISTRY_SERVER_URL          = "https://index.docker.io"
-    WEBSITES_PORT                       = "80"
-    FUNCTIONS_WORKER_RUNTIME_VERSION    = "3.12"
-    AZURE_FUNCTIONS_ENVIRONMENT         = "Development"
-    APPINSIGHTS_INSTRUMENTATIONKEY        = azurerm_application_insights.backend.instrumentation_key
-    APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.backend.connection_string
-    ACS_CONNECTION_STRING     = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=ACS-CONNECTION-STRING)"
-    SENDER_ADDRESS            = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=SENDER-ADDRESS)"
-    SB_CONNECTION_STRING      = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=SB-CONNECTION-STRING)"
-    COSMOS_CONNECTION_STRING  = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=COSMOS-CONNECTION-STRING)"
-    COSMOS_ENDPOINT           = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=COSMOS-ENDPOINT)"
-    COSMOS_KEY                = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=COSMOS-KEY)"
-    COSMOS_DATABASE           = var.cosmos_database
-    STORAGE_CONNECTION_STRING = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=STORAGE-CONNECTION-STRING)"
-  }
-
-  tags       = local.tags
-  depends_on = [azurerm_key_vault_access_policy.terraform]
-}
-
-# ── Email Processing — Azure Durable Function App (Python 3.12) ───────────────
-resource "azurerm_linux_function_app" "email" {
-  name                       = "${local.p}-email-${local.env}"
-  location                   = azurerm_resource_group.main.location
-  resource_group_name        = azurerm_resource_group.main.name
+  location                   = azurerm_resource_group.func.location
+  resource_group_name        = azurerm_resource_group.func.name
   service_plan_id            = azurerm_service_plan.main.id
   storage_account_name       = azurerm_storage_account.main.name
   storage_account_access_key = azurerm_storage_account.main.primary_access_key
@@ -429,29 +421,91 @@ resource "azurerm_linux_function_app" "email" {
     http2_enabled       = true
     minimum_tls_version = "1.2"
 
-    application_stack { use_custom_runtime = true }
+    application_stack {
+      python_version = "3.12"
+    }
+
+    cors {
+      allowed_origins = [
+        "https://${local.p}-frontend-${local.env}.azurewebsites.net",
+        "http://localhost:8080",
+      ]
+    }
   }
 
   app_settings = {
+    FUNCTIONS_WORKER_RUNTIME = "python"
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+
+    APPINSIGHTS_INSTRUMENTATIONKEY        = azurerm_application_insights.backend.instrumentation_key
+    APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.backend.connection_string
+
+    # ACS; no managed identity support, stays as KV reference
+    ACS_CONNECTION_STRING = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=ACS-CONNECTION-STRING)"
+    SENDER_ADDRESS        = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=SENDER-ADDRESS)"
+
+    # Cosmos; endpoint only, managed identity handles auth
+    COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
+    COSMOS_DATABASE = var.cosmos_database
+
+    # Service Bus; namespace hostname only, managed identity handles auth
+    SB_NAMESPACE = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
+
+    # Storage account name surfaced to app code; auth via managed identity
+    STORAGE_ACCOUNT_NAME = azurerm_storage_account.main.name
+  }
+
+  tags       = local.tags
+  depends_on = [azurerm_key_vault_access_policy.terraform]
+}
+
+# == Email Processing; Durable Function App ====================================
+resource "azurerm_linux_function_app" "email" {
+  name                       = "${local.p}-email-${local.env}"
+  location                   = azurerm_resource_group.func.location
+  resource_group_name        = azurerm_resource_group.func.name
+  service_plan_id            = azurerm_service_plan.main.id
+  storage_account_name       = azurerm_storage_account.main.name
+  storage_account_access_key = azurerm_storage_account.main.primary_access_key
+  https_only                 = true
+
+  identity { type = "SystemAssigned" }
+
+  site_config {
+    always_on           = false
+    ftps_state          = "Disabled"
+    http2_enabled       = true
+    minimum_tls_version = "1.2"
+
+    application_stack {
+      python_version = "3.12"
+    }
+  }
+
+  app_settings = {
+    FUNCTIONS_WORKER_RUNTIME       = "python"
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+
+    # Service Bus trigger binding; identity auth
+    AzureWebJobsServiceBus__fullyQualifiedNamespace = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
+    AzureWebJobsServiceBus__credential              = "managedidentity"
+
     APPINSIGHTS_INSTRUMENTATIONKEY        = azurerm_application_insights.email.instrumentation_key
     APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.email.connection_string
-    FUNCTIONS_WORKER_RUNTIME            = "python"
-    WEBSITES_ENABLE_APP_SERVICE_STORAGE = "false"
-    DOCKER_ENABLE_CI                    = "true"
-    DOCKER_CUSTOM_IMAGE_NAME            = var.email_image
-    DOCKER_REGISTRY_SERVER_URL          = "https://index.docker.io"
 
-    # Durable Functions needs storage for orchestration state
-    AzureWebJobsStorage = azurerm_storage_account.main.primary_connection_string
+    # ACS; no managed identity support, stays as KV reference
+    ACS_CONNECTION_STRING = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=ACS-CONNECTION-STRING)"
+    SENDER_ADDRESS        = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=SENDER-ADDRESS)"
 
-    ACS_CONNECTION_STRING     = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=ACS-CONNECTION-STRING)"
-    SENDER_ADDRESS            = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=SENDER-ADDRESS)"
-    SB_CONNECTION_STRING      = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=SB-CONNECTION-STRING)"
-    COSMOS_CONNECTION_STRING  = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=COSMOS-CONNECTION-STRING)"
-    COSMOS_ENDPOINT           = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=COSMOS-ENDPOINT)"
-    COSMOS_KEY                = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=COSMOS-KEY)"
-    COSMOS_DATABASE           = var.cosmos_database
-    STORAGE_CONNECTION_STRING = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=STORAGE-CONNECTION-STRING)"
+    # Cosmos; endpoint only, managed identity handles auth
+    COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
+    COSMOS_DATABASE = var.cosmos_database
+
+    # Service Bus; namespace hostname only, managed identity handles auth
+    SB_NAMESPACE = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
+
+    # Storage account name surfaced to app code; auth via managed identity
+    STORAGE_ACCOUNT_NAME = azurerm_storage_account.main.name
   }
 
   tags       = local.tags

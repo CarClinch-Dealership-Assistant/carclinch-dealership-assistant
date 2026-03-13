@@ -1,2 +1,3 @@
 azure-cosmos
 python-dotenv
+azure-identity
