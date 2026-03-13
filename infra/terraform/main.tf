@@ -44,8 +44,8 @@ resource "azurerm_resource_group" "main" {
 }
 
 # func: Consumption function apps + their storage/plan/insights
-# Kept separate because Azure locks a RG's App Service feature set on first plan
-# creation — mixing B1 Linux and Y1 Linux Consumption in one RG is rejected.
+# Kept separate bc Azure locks a RG's App Service feature set on first plan
+# creation; mixing B1 Linux and Y1 Linux Consumption in one RG is rejected.
 resource "azurerm_resource_group" "func" {
   name     = "${local.p}-func-rg-${local.env}"
   location = local.loc
@@ -64,8 +64,6 @@ resource "azurerm_storage_account" "main" {
   allow_nested_items_to_be_public = false
   public_network_access_enabled   = true
 
-  # Consumption workers run on dynamic infra not covered by AzureServices bypass;
-  # the host storage connection requires open access on Linux Consumption.
   network_rules {
     default_action = "Allow"
     bypass         = ["AzureServices"]
@@ -75,6 +73,7 @@ resource "azurerm_storage_account" "main" {
 }
 
 # == Azure Communication Services ==============================================
+# We will remove this in the sprint 2 iteration
 resource "azurerm_communication_service" "main" {
   name                = "${local.p}-acs-${local.env}"
   resource_group_name = azurerm_resource_group.main.name
@@ -170,7 +169,7 @@ resource "azurerm_servicebus_queue" "leads" {
   dead_lettering_on_message_expiration = true
 }
 
-# Kept for local dev / fallback; managed identity is used in Azure
+# Kept for local dev/fallback; managed identity is used in Azure
 resource "azurerm_servicebus_namespace_authorization_rule" "apps" {
   name         = "apps-send-listen"
   namespace_id = azurerm_servicebus_namespace.main.id
@@ -230,7 +229,7 @@ resource "azurerm_key_vault_access_policy" "email" {
 
 # == Managed Identity RBAC assignments =========================================
 
-# Cosmos DB; built-in data contributor role (id ending in ...0002)
+# Cosmos DB; built-in data contributor role
 resource "azurerm_cosmosdb_sql_role_assignment" "backend" {
   resource_group_name = azurerm_resource_group.main.name
   account_name        = azurerm_cosmosdb_account.main.name
@@ -261,7 +260,7 @@ resource "azurerm_role_assignment" "email_sb_receiver" {
 }
 
 # Storage; both functions need blob + queue + table for the Functions runtime
-# (blob: deployment packages; queue+table: Durable Functions / internal runtime state)
+# (blob: deployment packages; queue+table: Durable Functions/internal runtime state)
 resource "azurerm_role_assignment" "backend_storage_blob" {
   scope                = azurerm_storage_account.main.id
   role_definition_name = "Storage Blob Data Contributor"
@@ -300,7 +299,6 @@ resource "azurerm_role_assignment" "email_storage_table" {
 
 # == Key Vault secrets =========================================================
 # Only ACS secrets; everything else uses managed identity
-
 resource "azurerm_key_vault_secret" "acs_connection_string" {
   name         = "ACS-CONNECTION-STRING"
   value        = azurerm_communication_service.main.primary_connection_string
@@ -357,7 +355,7 @@ resource "azurerm_service_plan" "frontend" {
 }
 
 # == App Service Plan (Functions; Consumption) =================================
-# In func RG so Azure doesn't conflict B1 + Y1 Linux feature sets.
+# In func RG so Azure doesn't conflict B1 w/ Y1 Linux feature sets.
 resource "azurerm_service_plan" "main" {
   name                = "${local.p}-plan-${local.env}"
   location            = azurerm_resource_group.func.location
