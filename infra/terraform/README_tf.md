@@ -18,9 +18,10 @@ terraform apply
 ## Azure Functions
 
 Cannot use Docker images for Consumption. In practice we will likely use GitHub Actions.
-This requires you to navigate to cloned local repo for `form-backend-service` which may be a diff file path from below, and assumes that it is on `main`.
 
 ### Push Zip Backend Function
+
+This requires you to navigate to cloned local repo for `form-backend-service` which may be a diff file path from below, and assumes that it is on `feature/managedIentities`.
 
 ```
 cd ../../../form-backend-service
@@ -28,6 +29,8 @@ func azure functionapp publish carclinch-backend-dev --python
 ```
 
 ### Push Zip Email Function
+
+This requires you to navigate to cloned local repo for `email-processing-service` which may be a diff file path from below, and assumes that it is on `feature/sprint1ManagedIdentities`.
 
 ```
 cd ../../../email-processing-service
