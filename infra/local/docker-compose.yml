@@ -121,12 +121,13 @@ services:
   # form frontend service
   form-frontend:
     container_name: "form-frontend-service"
-    image: carclinchda/form-frontend-service:decoupled
+    image: carclinchda/form-frontend-service:sprint1-v2
     pull_policy: always
     ports:
       - "8080:80"
     environment:
-      BACKEND_URL: "http://form-backend:80"
+      PROXY_BACKEND_HOST: form-backend-service:80
+      BACKEND_URL: http://localhost:8080/api
     depends_on:
       - form-backend
     networks:

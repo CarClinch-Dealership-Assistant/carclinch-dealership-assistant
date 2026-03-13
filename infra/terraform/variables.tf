@@ -23,7 +23,7 @@ variable "location" {
 variable "frontend_image" {
   description = "DockerHub image for the frontend App Service (HTML/CSS/JS)."
   type        = string
-  default     = "carclinchda/form-frontend-service:sprint1"
+  default     = "carclinchda/form-frontend-service:sprint1-v2"
 }
 
 variable "backend_image" {
