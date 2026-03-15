@@ -36,6 +36,22 @@ git checkout feature/replying-email-prompt
 func azure functionapp publish carclinch-email-dev --python
 ```
 
+I also rec if you want to track logs to turn off noise:
+
+```
+az functionapp config appsettings set \
+  --name carclinch-email-dev \
+  --resource-group carclinch-func-rg-dev \
+  --settings \
+    "AzureFunctionsJobHost__logging__logLevel__Host.Triggers.DurableTask=Error" \
+    "AzureFunctionsJobHost__logging__logLevel__Azure.Data.Tables=Error" \
+    "AzureFunctionsJobHost__logging__logLevel__Azure.Messaging.ServiceBus=Error" \
+    "AzureFunctionsJobHost__logging__logLevel__Default=Warning" \
+    "AzureFunctionsJobHost__logging__logLevel__Azure.Storage.Blobs=Error" \
+    "AzureFunctionsJobHost__logging__logLevel__Azure.Storage.Queues=Error" \
+    "AzureFunctionsJobHost__logging__logLevel__Azure.Storage.Common=Error"
+```
+
 ## Test
 
 Navigate to the provided `frontend-url` in the Terraform outputs.
