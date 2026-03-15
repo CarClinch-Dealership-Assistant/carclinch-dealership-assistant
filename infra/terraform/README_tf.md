@@ -18,17 +18,21 @@ Cannot use Docker images for Consumption. In practice we will likely use GitHub 
 
 ### Push Zip Backend Function
 
-This requires you to navigate to cloned local repo for `form-backend-service` and assumes that it is on `feature/managedIdentities`.
+This requires you to navigate to cloned local repo for `form-backend-service` and assumes that it is on `feature/managedIdentities` branch.
 
 ```
+git fetch
+git checkout feature/managedIdentities
 func azure functionapp publish carclinch-backend-dev --python
 ```
 
 ### Push Zip Email Function
 
-This requires you to navigate to cloned local repo for `email-processing-service` and assumes that it is on `feature/replying-email`.
+This requires you to navigate to cloned local repo for `email-processing-service` and assumes that it is on `feature/replying-email-prompt` branch.
 
 ```
+git fetch
+git checkout feature/replying-email-prompt
 func azure functionapp publish carclinch-email-dev --python
 ```
 
