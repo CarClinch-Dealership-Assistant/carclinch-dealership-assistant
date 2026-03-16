@@ -1,11 +1,31 @@
 terraform {
-  required_version = ">= 1.6"
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.110"
+      version = "~> 4.0"
+    }
+    github = {
+      source  = "integrations/github"
+      version = "~> 6.0"
     }
   }
+}
+
+provider "github" {
+  owner = "CarClinch-Dealership-Assistant"
+  token = var.github_token
+}
+
+resource "github_actions_secret" "swa_token" {
+  repository      = "form-frontend-service"
+  secret_name     = "AZURE_STATIC_WEB_APPS_API_TOKEN"
+  plaintext_value = azurerm_static_web_app.frontend.api_key
+}
+
+resource "github_actions_secret" "backend_url" {
+  repository      = "form-frontend-service"
+  secret_name     = "BACKEND_URL"
+  plaintext_value = "https://${azurerm_linux_function_app.backend.default_hostname}/api"
 }
 
 provider "azurerm" {
@@ -13,6 +33,9 @@ provider "azurerm" {
     key_vault {
       purge_soft_delete_on_destroy    = true
       recover_soft_deleted_key_vaults = true
+    }
+    cognitive_account {
+      purge_soft_delete_on_destroy = true
     }
     resource_group {
       prevent_deletion_if_contains_resources = false
@@ -82,7 +105,7 @@ resource "azurerm_cosmosdb_account" "main" {
   kind                = "GlobalDocumentDB"
 
   public_network_access_enabled = true
-  ip_range_filter               = "${var.terraform_client_ip},0.0.0.0"
+  ip_range_filter               = [var.terraform_client_ip, "0.0.0.0"]
 
   capabilities { name = "EnableServerless" }
 
@@ -231,7 +254,7 @@ resource "azurerm_key_vault_secret" "openai_base_url" {
 # == Microsoft Foundry =======================================================
 resource "azurerm_cognitive_account" "foundry" {
   name                = "${local.p}-foundry-${local.env}"
-  location            = var.foundry_location # eastus2 rec for model availability
+  location            = var.location
   resource_group_name = azurerm_resource_group.main.name
   kind                = "OpenAI"
   sku_name            = "S0"
@@ -251,8 +274,8 @@ resource "azurerm_cognitive_deployment" "gpt" {
     version = var.foundry_model_version
   }
 
-  scale {
-    type     = "DataZoneStandard"
+  sku {
+    name     = "DataZoneStandard"
     capacity = 10
   }
 }
@@ -354,15 +377,25 @@ resource "azurerm_application_insights" "email" {
   tags                = local.tags
 }
 
-# == App Service Plan (Frontend) ===============================================
-resource "azurerm_service_plan" "frontend" {
-  name                = "${local.p}-plan-frontend-${local.env}"
+# == Static Web App (Frontend) ===============================================
+resource "azurerm_static_web_app" "frontend" {
+  name                = "${local.p}-frontend-${local.env}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
-  os_type             = "Linux"
-  sku_name            = "B1"
-  tags                = local.tags
+  sku_tier            = "Free"
+  sku_size            = "Free"
+
+  tags = local.tags
 }
+
+# resource "azurerm_service_plan" "frontend" {
+#   name                = "${local.p}-plan-frontend-${local.env}"
+#   location            = azurerm_resource_group.main.location
+#   resource_group_name = azurerm_resource_group.main.name
+#   os_type             = "Linux"
+#   sku_name            = "B1"
+#   tags                = local.tags
+# }
 
 # == App Service Plan (Functions; Consumption) =================================
 resource "azurerm_service_plan" "main" {
@@ -375,40 +408,40 @@ resource "azurerm_service_plan" "main" {
 }
 
 # == Frontend; App Service =====================================================
-resource "azurerm_linux_web_app" "frontend" {
-  name                = "${local.p}-frontend-${local.env}"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  service_plan_id     = azurerm_service_plan.frontend.id
-  https_only          = true
+# resource "azurerm_linux_web_app" "frontend" {
+#   name                = "${local.p}-frontend-${local.env}"
+#   location            = azurerm_resource_group.main.location
+#   resource_group_name = azurerm_resource_group.main.name
+#   service_plan_id     = azurerm_service_plan.frontend.id
+#   https_only          = true
 
-  identity { type = "SystemAssigned" }
+#   identity { type = "SystemAssigned" }
 
-  site_config {
-    always_on           = true
-    ftps_state          = "Disabled"
-    http2_enabled       = true
-    minimum_tls_version = "1.2"
+#   site_config {
+#     always_on           = true
+#     ftps_state          = "Disabled"
+#     http2_enabled       = true
+#     minimum_tls_version = "1.2"
 
-    application_stack {
-      docker_image_name   = var.frontend_image
-      docker_registry_url = "https://index.docker.io"
-    }
-  }
+#     application_stack {
+#       docker_image_name   = var.frontend_image
+#       docker_registry_url = "https://index.docker.io"
+#     }
+#   }
 
-  app_settings = {
-    WEBSITES_ENABLE_APP_SERVICE_STORAGE = "false"
-    DOCKER_ENABLE_CI                    = "true"
-    WEBSITES_PORT                       = "80"
-    BACKEND_URL                         = "https://${local.p}-backend-${local.env}.azurewebsites.net/api"
-  }
+#   app_settings = {
+#     WEBSITES_ENABLE_APP_SERVICE_STORAGE = "false"
+#     DOCKER_ENABLE_CI                    = "true"
+#     WEBSITES_PORT                       = "80"
+#     BACKEND_URL                         = "https://${local.p}-backend-${local.env}.azurewebsites.net/api"
+#   }
 
-  logs {
-    application_logs { file_system_level = "Warning" }
-  }
+#   logs {
+#     application_logs { file_system_level = "Warning" }
+#   }
 
-  tags = local.tags
-}
+#   tags = local.tags
+# }
 
 # == Backend; Function App =====================================================
 resource "azurerm_linux_function_app" "backend" {
@@ -434,7 +467,7 @@ resource "azurerm_linux_function_app" "backend" {
 
     cors {
       allowed_origins = [
-        "https://${local.p}-frontend-${local.env}.azurewebsites.net",
+        "https://${azurerm_static_web_app.frontend.default_host_name}",
         "http://localhost:8080",
       ]
     }
@@ -443,13 +476,14 @@ resource "azurerm_linux_function_app" "backend" {
   app_settings = {
     FUNCTIONS_WORKER_RUNTIME       = "python"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+    CORS_ORIGIN                    = "https://${azurerm_static_web_app.frontend.default_host_name}"
 
     APPINSIGHTS_INSTRUMENTATIONKEY        = azurerm_application_insights.backend.instrumentation_key
     APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.backend.connection_string
 
     # Cosmos; endpoint only, managed identity handles auth
     COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
-    COSMOS_DB_NAME = var.cosmos_db_name
+    COSMOS_DB_NAME  = var.cosmos_db_name
 
     # Service Bus; namespace hostname only, managed identity handles auth
     SB_NAMESPACE = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
@@ -498,7 +532,7 @@ resource "azurerm_linux_function_app" "email" {
 
     # Cosmos; endpoint only, managed identity handles auth
     COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
-    COSMOS_DB_NAME = var.cosmos_db_name
+    COSMOS_DB_NAME  = var.cosmos_db_name
 
     # Service Bus; namespace hostname only, managed identity handles auth
     SB_NAMESPACE = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"

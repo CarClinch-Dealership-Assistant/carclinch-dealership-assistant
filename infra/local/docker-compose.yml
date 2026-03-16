@@ -51,7 +51,7 @@ services:
     image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator
     restart: always
     environment:
-      AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 5
+      AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 10
       AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: "true"
       AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE: ${AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE:-"0.0.0.0"}
     ports:
@@ -93,10 +93,10 @@ services:
     networks:
       - dealership-assistant
 
-  # form backend service
+# form backend service
   form-backend:
     container_name: "form-backend-service"
-    image: carclinchda/form-backend-service:sprint2
+    image: carclinchda/form-backend-service:swa
     pull_policy: always
     ports:
       - "7071:80"
@@ -109,24 +109,22 @@ services:
       COSMOS_DB_NAME: "${COSMOS_DB_NAME:-CarClinchDB}"
       COSMOS_CONNECTION_STRING: ${COSMOS_CONNECTION_STRING}
       SB_CONNECTION_STRING: ${SB_CONNECTION_STRING}
-      SB_NAMESPACE: ${SB_NAMESPACE}
+      SB_NAMESPACE: ${SB_NAMESPACE:-"servicebus-emulator"}
     depends_on:
-      - service-bus
-      - azurite
       - cosmosdb
     networks:
       - dealership-assistant
-
-  # form frontend service
+      
+# form frontend service
   form-frontend:
     container_name: "form-frontend-service"
-    image: carclinchda/form-frontend-service:latest
+    image: carclinchda/form-frontend-service:swa
     pull_policy: always
     ports:
       - "8080:80"
     environment:
-      PROXY_BACKEND_HOST: form-backend-service:80
-      BACKEND_URL: http://localhost:8080/api
+      PROXY_BACKEND_HOST: "form-backend-service:80"
+      BACKEND_URL: "http://localhost:8080/api"
     depends_on:
       - form-backend
     networks:

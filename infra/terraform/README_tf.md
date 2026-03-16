@@ -5,12 +5,22 @@
 1. Run:
 ```
 terraform init
+```
+2. Copy `terraform.tfvars.example` and set `gmail_app_password`, `gmail_user`, and `github_token`. Adjust the other tfvars as needed, like region if your student sub doesn't use the default `eastus2`. Keep in mind that SWA can only deploy in regions `'westus2,centralus,eastus2,westeurope,eastasia'`
+3. Run:
+```
 terraform apply
 ```
-2. Set your Gmail app password & email address.
-3. Set the prefix ie "carclinch"
 4. Set your public IP for CosmosDB seeding as instructed.
 5. Type 'yes' when asked.
+6. To deploy frontend to Static Web App, run:
+```
+gh workflow run azure-static-web-apps.yml \
+  --repo CarClinch-Dealership-Assistant/form-frontend-service \
+  --ref task/extVariables
+```
+
+(depending on when you look at this, ref may be `main`; that task branch should be a safe up to date bet though)
 
 ## Azure Functions
 

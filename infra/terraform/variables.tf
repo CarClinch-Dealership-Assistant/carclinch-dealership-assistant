@@ -51,15 +51,10 @@ variable "gmail_user" {
 variable "gmail_app_password" {
   type        = string
   sensitive   = true
-  description = "Gmail App Password (not your account password — generate one at myaccount.google.com/apppasswords)"
+  description = "Gmail App Password (not your account password; generate one at myaccount.google.com/apppasswords)"
 }
 
 # == Azure AI Foundry ==========================================================
-variable "foundry_location" {
-  type        = string
-  description = "Region for the Azure AI Foundry resource. eastus2 recommended for broadest model availability"
-  default     = "eastus2"
-}
 
 variable "foundry_model_name" {
   type        = string
@@ -72,3 +67,11 @@ variable "foundry_model_version" {
   description = "Model version to deploy"
   default     = "2025-04-14"
 }
+
+# == GitHub =====================================================================
+variable "github_token" {
+  type        = string
+  sensitive   = true
+  description = "GitHub PAT with repo and workflow scopes"
+}
+

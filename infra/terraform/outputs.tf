@@ -1,7 +1,7 @@
 # == URLs ======================================================================
 output "frontend_url" {
-  value       = "https://${azurerm_linux_web_app.frontend.default_hostname}"
-  description = "Frontend app URL"
+  value       = "https://${azurerm_static_web_app.frontend.default_host_name}"
+  description = "Frontend SWA URL"
 }
 
 output "backend_url" {
