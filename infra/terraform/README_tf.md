@@ -28,11 +28,11 @@ Cannot use Docker images for Consumption. In practice we will likely use GitHub 
 
 ### Push Zip Backend Function
 
-This requires you to navigate to cloned local repo for `form-backend-service` and assumes that it is on `feature/managedIdentities` branch.
+This requires you to navigate to cloned local repo for `form-backend-service` and assumes that it is on `main` branch.
 
 ```
 git fetch
-git checkout feature/managedIdentities
+git checkout main
 func azure functionapp publish carclinch-backend-dev --python
 ```
 

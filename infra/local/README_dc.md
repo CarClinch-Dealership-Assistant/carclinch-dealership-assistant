@@ -17,8 +17,8 @@ source cosmosdb/.venv/Scripts/activate
 
 ## Docker Compose
 
+Activate venv and in `/infra/local`:
 ```bash
-cd infra/local
 docker compose up -d
 ```
 
