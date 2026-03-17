@@ -13,16 +13,13 @@ The `/docs` directory in this repository contains uploaded files that are import
 
 ## Repository Structure
 ```
-infra/              → Terraform modules (future task)
+infra/              → Local infra (Docker Compose) & Terraform modules
 docs/               → Uploaded files (presentations, reports, diagrams, etc.)
-postgres/           → Postgres via Docker & init with DB schema
-.github/workflows/  → CI/CD pipelines (future task)
-tests/              → Unit and integration tests (Pytest, future task)
 ```
 ---
 
 ## Contributing
 
 - Open issues in the Github Projects board for new features & milestones
-- Use feature branches to develop on
+- Use feature branches to develop on in the respective service repo
 - Keep `/docs` for uploaded files mainly; write documentation in Google Docs link above
