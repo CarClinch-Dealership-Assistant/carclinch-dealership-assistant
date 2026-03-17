@@ -1,7 +1,7 @@
 name: sprint1-core-email
 services:
 # ------------
-# azure service emulators10.70.137.53
+# azure service emulators
 # ------------
   # azurite emulator
   azurite:
@@ -51,7 +51,7 @@ services:
     image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator
     restart: always
     environment:
-      AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 5
+      AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 10
       AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: "true"
       AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE: ${AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE:-"0.0.0.0"}
     ports:
@@ -70,7 +70,7 @@ services:
   # email processing service
   email-processing:
     container_name: "email-processing-service"
-    image: carclinchda/email-processing-service:smtp
+    image: carclinchda/email-processing-service:sprint2
     pull_policy: always
     environment:
       FUNCTIONS_WORKER_RUNTIME_VERSION: "3.12"
@@ -78,15 +78,14 @@ services:
       WEBSITE_HOSTNAME: "localhost:80"
       AzureWebJobsStorage: "UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite"
       AzureWebJobsServiceBus: ${SB_CONNECTION_STRING}
-      ACS_CONNECTION_STRING: ${ACS_CONNECTION_STRING}
-      SENDER_ADDRESS: "${SENDER_ADDRESS}"
       COSMOS_CONNECTION_STRING: ${COSMOS_CONNECTION_STRING}
-      COSMOS_DB_NAME: "${COSMOS_DATABASE:-CarClinchDB}"
-      COSMOS_DB_CONTAINER: "${COSMOS_CONTAINER:-messages}"
+      COSMOS_DB_NAME: "${COSMOS_DB_NAME:-CarClinchDB}"
+      COSMOS_DB_CONTAINER: "${COSMOS_DB_CONTAINER:-messages}"
       GMAIL_USER: "${GMAIL_USER}"
       GMAIL_APP_PASSWORD: "${GMAIL_APP_PASSWORD}"
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
       OPENAI_BASE_URL: "${OPENAI_BASE_URL}"
+      OPENAI_MODEL_NAME: "${OPENAI_MODEL_NAME}"
     depends_on:
       - service-bus
       - azurite
@@ -94,10 +93,10 @@ services:
     networks:
       - dealership-assistant
 
-  # form backend service
+# form backend service
   form-backend:
     container_name: "form-backend-service"
-    image: carclinchda/form-backend-service:latest
+    image: carclinchda/form-backend-service:swa
     pull_policy: always
     ports:
       - "7071:80"
@@ -107,23 +106,25 @@ services:
       WEBSITE_HOSTNAME: "localhost:80"
       AzureWebJobsStorage: ${STORAGE_CONNECTION_STRING}
       COSMOS_ENDPOINT: "${COSMOS_ENDPOINT}"
-      COSMOS_KEY: "${COSMOS_KEY}"
-      COSMOS_DATABASE: "${COSMOS_DATABASE:-CarClinchDB}"
-      SERVICE_BUS_CONNECTION_STRING: ${SB_CONNECTION_STRING}
+      COSMOS_DB_NAME: "${COSMOS_DB_NAME:-CarClinchDB}"
+      COSMOS_CONNECTION_STRING: ${COSMOS_CONNECTION_STRING}
+      SB_CONNECTION_STRING: ${SB_CONNECTION_STRING}
+      SB_NAMESPACE: ${SB_NAMESPACE:-"servicebus-emulator"}
     depends_on:
-      - service-bus
-      - azurite
       - cosmosdb
     networks:
       - dealership-assistant
-
-  # form frontend service
+      
+# form frontend service
   form-frontend:
     container_name: "form-frontend-service"
-    image: carclinchda/form-frontend-service:decoupled
+    image: carclinchda/form-frontend-service:swa
     pull_policy: always
     ports:
       - "8080:80"
+    environment:
+      PROXY_BACKEND_HOST: "form-backend-service:80"
+      BACKEND_URL: "http://localhost:8080/api"
     depends_on:
       - form-backend
     networks:
