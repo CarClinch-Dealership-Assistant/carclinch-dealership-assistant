@@ -2,6 +2,11 @@
 variable "prefix" {
   type        = string
   description = "Short prefix used in all resource names"
+
+  validation {
+    condition     = length(var.prefix) <= 6
+    error_message = "prefix must be 6 characters or fewer to stay within Azure storage account name limits."
+  }
 }
 
 variable "environment" {
@@ -13,7 +18,7 @@ variable "environment" {
 variable "location" {
   type        = string
   description = "Primary Azure region for all resources"
-  default     = "canadacentral"
+  default     = "eastus2"
 }
 
 variable "tags" {
@@ -28,13 +33,6 @@ variable "terraform_client_ip" {
   description = "Your public IP; added to Cosmos DB IP allowlist so Terraform can seed data. Find it at https://ifconfig.me"
 }
 
-# == Frontend ==================================================================
-variable "frontend_image" {
-  type        = string
-  description = "Docker image for the frontend"
-  default     = "carclinchda/form-frontend-service:latest"
-}
-
 # == Cosmos DB =================================================================
 variable "cosmos_db_name" {
   type        = string
@@ -45,17 +43,17 @@ variable "cosmos_db_name" {
 # == Gmail =====================================================================
 variable "gmail_user" {
   type        = string
+  sensitive   = true
   description = "Gmail address used by the email function (e.g. yourapp@gmail.com)"
 }
 
 variable "gmail_app_password" {
   type        = string
   sensitive   = true
-  description = "Gmail App Password (not your account password; generate one at myaccount.google.com/apppasswords)"
+  description = "Gmail App Password (not your account password — generate one at myaccount.google.com/apppasswords)"
 }
 
 # == Azure AI Foundry ==========================================================
-
 variable "foundry_model_name" {
   type        = string
   description = "Model deployment name and model name (e.g. gpt-4.1-mini)"
@@ -68,10 +66,9 @@ variable "foundry_model_version" {
   default     = "2025-04-14"
 }
 
-# == GitHub =====================================================================
+# == GitHub ====================================================================
 variable "github_token" {
   type        = string
   sensitive   = true
-  description = "GitHub PAT with repo and workflow scopes"
+  description = "GitHub personal access token with repo secrets write permission"
 }
-

@@ -1,7 +1,13 @@
 # == URLs ======================================================================
 output "frontend_url" {
   value       = "https://${azurerm_static_web_app.frontend.default_host_name}"
-  description = "Frontend SWA URL"
+  description = "Frontend Static Web App URL"
+}
+
+output "frontend_deploy_token" {
+  value       = azurerm_static_web_app.frontend.api_key
+  sensitive   = true
+  description = "SWA deploy token — auto-pushed to GitHub Actions via github_actions_secret"
 }
 
 output "backend_url" {
@@ -9,42 +15,44 @@ output "backend_url" {
   description = "Backend function app base URL"
 }
 
-# == Resource names (useful for CLI commands) ==================================
+# == Resource names ============================================================
 output "backend_function_app_name" {
   value       = azurerm_linux_function_app.backend.name
-  description = "Used in: func azure functionapp publish <name> --python"
+  description = "func azure functionapp publish <n> --python"
 }
 
 output "email_function_app_name" {
   value       = azurerm_linux_function_app.email.name
-  description = "Used in: func azure functionapp publish <name> --python"
+  description = "func azure functionapp publish <n> --python"
 }
 
 output "resource_group_main" {
-  value = azurerm_resource_group.main.name
+  value       = azurerm_resource_group.main.name
+  description = "Main resource group"
 }
 
 output "resource_group_func" {
-  value = azurerm_resource_group.func.name
+  value       = azurerm_resource_group.func.name
+  description = "Functions resource group"
 }
 
 # == Cosmos ====================================================================
 output "cosmos_endpoint" {
   value       = azurerm_cosmosdb_account.main.endpoint
-  description = "Set as COSMOS_ENDPOINT in local.settings.json for local dev (use key for auth locally)"
+  description = "COSMOS_ENDPOINT for local.settings.json"
 }
 
 output "cosmos_primary_key" {
   value       = azurerm_cosmosdb_account.main.primary_key
   sensitive   = true
-  description = "Use as COSMOS_CONNECTION_STRING locally; MI is used in Azure"
+  description = "Local dev only — Azure uses managed identity"
 }
 
 # == Service Bus ===============================================================
 output "servicebus_connection_string" {
   value       = azurerm_servicebus_namespace_authorization_rule.apps.primary_connection_string
   sensitive   = true
-  description = "Use as SB_CONNECTION_STRING in local.settings.json for local dev"
+  description = "SB_CONNECTION_STRING for local.settings.json (local dev only)"
 }
 
 output "servicebus_namespace" {
@@ -55,16 +63,22 @@ output "servicebus_namespace" {
 # == AI Foundry ================================================================
 output "foundry_endpoint" {
   value       = azurerm_cognitive_account.foundry.endpoint
-  description = "Azure AI Foundry endpoint; auto-stored in Key Vault as OPENAI-BASE-URL"
+  description = "Azure AI Foundry endpoint"
 }
 
 output "foundry_model_name" {
   value       = var.foundry_model_name
-  description = "Deployment name to use as OPENAI_MODEL_NAME in local.settings.json"
+  description = "OPENAI_MODEL_NAME for local.settings.json"
 }
 
 # == Key Vault =================================================================
 output "key_vault_name" {
   value       = azurerm_key_vault.main.name
-  description = "Key Vault name; useful for az keyvault secret list --vault-name <name>"
+  description = "az keyvault secret list --vault-name <n>"
+}
+
+# == Observability =============================================================
+output "log_analytics_workspace_id" {
+  value       = azurerm_log_analytics_workspace.main.id
+  description = "Log Analytics workspace for querying audit logs"
 }
