@@ -484,6 +484,7 @@ resource "azurerm_linux_function_app" "backend" {
     # Cosmos; endpoint only, managed identity handles auth
     COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
     COSMOS_DB_NAME  = var.cosmos_db_name
+    COSMOS_VERIFY_SSL = "true"
 
     # Service Bus; namespace hostname only, managed identity handles auth
     SB_NAMESPACE = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
@@ -533,6 +534,7 @@ resource "azurerm_linux_function_app" "email" {
     # Cosmos; endpoint only, managed identity handles auth
     COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
     COSMOS_DB_NAME  = var.cosmos_db_name
+    COSMOS_VERIFY_SSL = "true"
 
     # Service Bus; namespace hostname only, managed identity handles auth
     SB_NAMESPACE = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
