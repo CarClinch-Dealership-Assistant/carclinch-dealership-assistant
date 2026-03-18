@@ -13,7 +13,7 @@ variable "environment" {
   type        = string
   description = "Deployment environment (dev, staging, prod)"
   default     = "dev"
-}
+} 
 
 variable "location" {
   type        = string
@@ -70,5 +70,6 @@ variable "foundry_model_version" {
 variable "github_token" {
   type        = string
   sensitive   = true
-  description = "GitHub personal access token with repo secrets write permission"
+  default     = ""
+  description = "GitHub personal access token with repo secrets write permission. Leave empty to skip GitHub secret injection."
 }

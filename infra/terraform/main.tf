@@ -21,12 +21,14 @@ provider "github" {
 }
 
 resource "github_actions_secret" "swa_token" {
+  count           = var.github_token != "" ? 1 : 0
   repository      = "form-frontend-service"
   secret_name     = "AZURE_STATIC_WEB_APPS_API_TOKEN"
   plaintext_value = azurerm_static_web_app.frontend.api_key
 }
 
 resource "github_actions_secret" "backend_url" {
+  count           = var.github_token != "" ? 1 : 0
   repository      = "form-frontend-service"
   secret_name     = "BACKEND_URL"
   plaintext_value = "https://${azurerm_linux_function_app.backend.default_hostname}/api"
@@ -129,7 +131,7 @@ resource "null_resource" "cosmos_seed" {
   }
 
   provisioner "local-exec" {
-    command = "pip3 install azure-cosmos --quiet && python3 ${path.module}/init.py"
+    command = "pip3 install azure-cosmos --quiet --break-system-packages && python3 ${path.module}/init.py"
 
     environment = {
       COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
@@ -176,7 +178,7 @@ resource "azurerm_key_vault" "main" {
   sku_name                      = "standard"
   soft_delete_retention_days    = 90
   purge_protection_enabled      = true
-  enable_rbac_authorization     = true
+  rbac_authorization_enabled    = true
   public_network_access_enabled = true
 
   network_acls {
@@ -446,13 +448,6 @@ resource "azurerm_linux_function_app" "backend" {
 
     application_stack {
       python_version = "3.12"
-    }
-
-    cors {
-      allowed_origins = [
-        "https://${azurerm_static_web_app.frontend.default_host_name}",
-        "http://localhost:8080",
-      ]
     }
   }
 
