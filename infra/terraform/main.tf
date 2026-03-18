@@ -234,32 +234,49 @@ resource "azurerm_key_vault_secret" "gmail_app_password" {
   depends_on   = [azurerm_key_vault_access_policy.terraform]
 }
 
-# Foundry key & endpoint auto-populated from provisioned resource; no manual copy needed
-resource "azurerm_key_vault_secret" "openai_api_key" {
-  name         = "OPENAI-API-KEY"
-  value        = azurerm_cognitive_account.foundry.primary_access_key
+# Foundry endpoint auto-populated from provisioned resource; no API key stored —
+# function apps authenticate via managed identity (Cognitive Services OpenAI User role).
+resource "azurerm_key_vault_secret" "foundry_endpoint" {
+  name         = "AZURE-OPENAI-ENDPOINT"
+  value        = azurerm_cognitive_account.foundry.endpoint
   key_vault_id = azurerm_key_vault.main.id
   tags         = local.tags
   depends_on   = [azurerm_key_vault_access_policy.terraform]
 }
 
-resource "azurerm_key_vault_secret" "openai_base_url" {
-  name         = "OPENAI-BASE-URL"
-  value        = "${azurerm_cognitive_account.foundry.endpoint}openai/v1/"
-  key_vault_id = azurerm_key_vault.main.id
-  tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
-}
-
-# == Microsoft Foundry =======================================================
+# == Microsoft Foundry =========================================================
+# kind = "AIServices" + project_management_enabled is the correct pattern for
+# Microsoft Foundry (post-2025 rename). This replaces kind = "OpenAI" which
+# provisions a plain Azure OpenAI account without Foundry capabilities.
 resource "azurerm_cognitive_account" "foundry" {
   name                = "${local.p}-foundry-${local.env}"
   location            = var.location
   resource_group_name = azurerm_resource_group.main.name
-  kind                = "OpenAI"
+  kind                = "AIServices"
   sku_name            = "S0"
 
+  # Required for the Foundry Agent Service and project management in the portal
+  custom_subdomain_name      = "${local.p}-foundry-${local.env}"
+  project_management_enabled = true
+
   public_network_access_enabled = true
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  tags = local.tags
+}
+
+# Foundry project — scoped workspace under the account for organizing work
+resource "azurerm_cognitive_account_project" "main" {
+  name                 = "${local.p}-foundry-project-${local.env}"
+  location             = var.location
+  cognitive_account_id = azurerm_cognitive_account.foundry.id
+
+  identity {
+    type = "SystemAssigned"
+  }
 
   tags = local.tags
 }
@@ -275,7 +292,7 @@ resource "azurerm_cognitive_deployment" "gpt" {
   }
 
   sku {
-    name     = "DataZoneStandard"
+    name     = "GlobalStandard"
     capacity = 10
   }
 }
@@ -349,6 +366,20 @@ resource "azurerm_role_assignment" "email_storage_table" {
   principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
 }
 
+# Foundry; backend calls the model via managed identity — no API key required
+resource "azurerm_role_assignment" "backend_foundry" {
+  scope                = azurerm_cognitive_account.foundry.id
+  role_definition_name = "Cognitive Services OpenAI User"
+  principal_id         = azurerm_linux_function_app.backend.identity[0].principal_id
+}
+
+# Email function also gets Foundry access in case it needs model calls
+resource "azurerm_role_assignment" "email_foundry" {
+  scope                = azurerm_cognitive_account.foundry.id
+  role_definition_name = "Cognitive Services OpenAI User"
+  principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
+}
+
 # == App Insights ==============================================================
 resource "azurerm_log_analytics_workspace" "main" {
   name                = "${local.p}-law-${local.env}"
@@ -388,15 +419,6 @@ resource "azurerm_static_web_app" "frontend" {
   tags = local.tags
 }
 
-# resource "azurerm_service_plan" "frontend" {
-#   name                = "${local.p}-plan-frontend-${local.env}"
-#   location            = azurerm_resource_group.main.location
-#   resource_group_name = azurerm_resource_group.main.name
-#   os_type             = "Linux"
-#   sku_name            = "B1"
-#   tags                = local.tags
-# }
-
 # == App Service Plan (Functions; Consumption) =================================
 resource "azurerm_service_plan" "main" {
   name                = "${local.p}-plan-${local.env}"
@@ -406,42 +428,6 @@ resource "azurerm_service_plan" "main" {
   sku_name            = "Y1"
   tags                = local.tags
 }
-
-# == Frontend; App Service =====================================================
-# resource "azurerm_linux_web_app" "frontend" {
-#   name                = "${local.p}-frontend-${local.env}"
-#   location            = azurerm_resource_group.main.location
-#   resource_group_name = azurerm_resource_group.main.name
-#   service_plan_id     = azurerm_service_plan.frontend.id
-#   https_only          = true
-
-#   identity { type = "SystemAssigned" }
-
-#   site_config {
-#     always_on           = true
-#     ftps_state          = "Disabled"
-#     http2_enabled       = true
-#     minimum_tls_version = "1.2"
-
-#     application_stack {
-#       docker_image_name   = var.frontend_image
-#       docker_registry_url = "https://index.docker.io"
-#     }
-#   }
-
-#   app_settings = {
-#     WEBSITES_ENABLE_APP_SERVICE_STORAGE = "false"
-#     DOCKER_ENABLE_CI                    = "true"
-#     WEBSITES_PORT                       = "80"
-#     BACKEND_URL                         = "https://${local.p}-backend-${local.env}.azurewebsites.net/api"
-#   }
-
-#   logs {
-#     application_logs { file_system_level = "Warning" }
-#   }
-
-#   tags = local.tags
-# }
 
 # == Backend; Function App =====================================================
 resource "azurerm_linux_function_app" "backend" {
@@ -482,8 +468,8 @@ resource "azurerm_linux_function_app" "backend" {
     APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.backend.connection_string
 
     # Cosmos; endpoint only, managed identity handles auth
-    COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
-    COSMOS_DB_NAME  = var.cosmos_db_name
+    COSMOS_ENDPOINT   = azurerm_cosmosdb_account.main.endpoint
+    COSMOS_DB_NAME    = var.cosmos_db_name
     COSMOS_VERIFY_SSL = "true"
 
     # Service Bus; namespace hostname only, managed identity handles auth
@@ -491,6 +477,10 @@ resource "azurerm_linux_function_app" "backend" {
 
     # Storage account name surfaced to app code; auth via managed identity
     STORAGE_ACCOUNT_NAME = azurerm_storage_account.main.name
+
+    # Foundry; endpoint via KV reference, auth via managed identity (no API key)
+    AZURE_OPENAI_ENDPOINT = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=AZURE-OPENAI-ENDPOINT)"
+    OPENAI_MODEL_NAME     = var.foundry_model_name
   }
 
   tags       = local.tags
@@ -532,8 +522,8 @@ resource "azurerm_linux_function_app" "email" {
     APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.email.connection_string
 
     # Cosmos; endpoint only, managed identity handles auth
-    COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
-    COSMOS_DB_NAME  = var.cosmos_db_name
+    COSMOS_ENDPOINT   = azurerm_cosmosdb_account.main.endpoint
+    COSMOS_DB_NAME    = var.cosmos_db_name
     COSMOS_VERIFY_SSL = "true"
 
     # Service Bus; namespace hostname only, managed identity handles auth
@@ -546,10 +536,9 @@ resource "azurerm_linux_function_app" "email" {
     GMAIL_USER         = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=GMAIL-USER)"
     GMAIL_APP_PASSWORD = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=GMAIL-APP-PASSWORD)"
 
-    # Azure AI Foundry; key + endpoint auto-wired from provisioned resource via KV
-    OPENAI_API_KEY    = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=OPENAI-API-KEY)"
-    OPENAI_BASE_URL   = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=OPENAI-BASE-URL)"
-    OPENAI_MODEL_NAME = var.foundry_model_name
+    # Foundry; endpoint via KV reference, auth via managed identity (no API key)
+    AZURE_OPENAI_ENDPOINT = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=AZURE-OPENAI-ENDPOINT)"
+    OPENAI_MODEL_NAME     = var.foundry_model_name
   }
 
   tags = local.tags
