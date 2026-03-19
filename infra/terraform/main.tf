@@ -234,20 +234,24 @@ resource "azurerm_key_vault_secret" "gmail_app_password" {
   depends_on   = [azurerm_key_vault_access_policy.terraform]
 }
 
-# Foundry endpoint auto-populated from provisioned resource; no API key stored —
-# function apps authenticate via managed identity (Cognitive Services OpenAI User role).
-resource "azurerm_key_vault_secret" "foundry_endpoint" {
-  name         = "AZURE-OPENAI-ENDPOINT"
-  value        = azurerm_cognitive_account.foundry.endpoint
+# Foundry key & endpoint auto-populated from provisioned resource; no manual copy needed
+resource "azurerm_key_vault_secret" "openai_api_key" {
+  name         = "OPENAI-API-KEY"
+  value        = azurerm_cognitive_account.foundry.primary_access_key
+  key_vault_id = azurerm_key_vault.main.id
+  tags         = local.tags
+  depends_on   = [azurerm_key_vault_access_policy.terraform]
+}
+
+resource "azurerm_key_vault_secret" "openai_base_url" {
+  name         = "OPENAI-BASE-URL"
+  value        = "${azurerm_cognitive_account.foundry.endpoint}openai/v1/"
   key_vault_id = azurerm_key_vault.main.id
   tags         = local.tags
   depends_on   = [azurerm_key_vault_access_policy.terraform]
 }
 
 # == Microsoft Foundry =========================================================
-# kind = "AIServices" + project_management_enabled is the correct pattern for
-# Microsoft Foundry (post-2025 rename). This replaces kind = "OpenAI" which
-# provisions a plain Azure OpenAI account without Foundry capabilities.
 resource "azurerm_cognitive_account" "foundry" {
   name                = "${local.p}-foundry-${local.env}"
   location            = var.location
@@ -255,7 +259,6 @@ resource "azurerm_cognitive_account" "foundry" {
   kind                = "AIServices"
   sku_name            = "S0"
 
-  # Required for the Foundry Agent Service and project management in the portal
   custom_subdomain_name      = "${local.p}-foundry-${local.env}"
   project_management_enabled = true
 
@@ -268,7 +271,6 @@ resource "azurerm_cognitive_account" "foundry" {
   tags = local.tags
 }
 
-# Foundry project — scoped workspace under the account for organizing work
 resource "azurerm_cognitive_account_project" "main" {
   name                 = "${local.p}-foundry-project-${local.env}"
   location             = var.location
@@ -363,20 +365,6 @@ resource "azurerm_role_assignment" "email_storage_queue" {
 resource "azurerm_role_assignment" "email_storage_table" {
   scope                = azurerm_storage_account.main.id
   role_definition_name = "Storage Table Data Contributor"
-  principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
-}
-
-# Foundry; backend calls the model via managed identity — no API key required
-resource "azurerm_role_assignment" "backend_foundry" {
-  scope                = azurerm_cognitive_account.foundry.id
-  role_definition_name = "Cognitive Services OpenAI User"
-  principal_id         = azurerm_linux_function_app.backend.identity[0].principal_id
-}
-
-# Email function also gets Foundry access in case it needs model calls
-resource "azurerm_role_assignment" "email_foundry" {
-  scope                = azurerm_cognitive_account.foundry.id
-  role_definition_name = "Cognitive Services OpenAI User"
   principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
 }
 
@@ -477,10 +465,6 @@ resource "azurerm_linux_function_app" "backend" {
 
     # Storage account name surfaced to app code; auth via managed identity
     STORAGE_ACCOUNT_NAME = azurerm_storage_account.main.name
-
-    # Foundry; endpoint via KV reference, auth via managed identity (no API key)
-    AZURE_OPENAI_ENDPOINT = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=AZURE-OPENAI-ENDPOINT)"
-    OPENAI_MODEL_NAME     = var.foundry_model_name
   }
 
   tags       = local.tags
@@ -536,9 +520,10 @@ resource "azurerm_linux_function_app" "email" {
     GMAIL_USER         = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=GMAIL-USER)"
     GMAIL_APP_PASSWORD = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=GMAIL-APP-PASSWORD)"
 
-    # Foundry; endpoint via KV reference, auth via managed identity (no API key)
-    AZURE_OPENAI_ENDPOINT = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=AZURE-OPENAI-ENDPOINT)"
-    OPENAI_MODEL_NAME     = var.foundry_model_name
+    # Azure AI Foundry; key + endpoint via KV references, matching original variable names
+    OPENAI_API_KEY    = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=OPENAI-API-KEY)"
+    OPENAI_BASE_URL   = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=OPENAI-BASE-URL)"
+    OPENAI_MODEL_NAME = var.foundry_model_name
   }
 
   tags = local.tags
