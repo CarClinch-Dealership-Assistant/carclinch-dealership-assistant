@@ -19,6 +19,10 @@ gh workflow run azure-static-web-apps.yml \
   --repo CarClinch-Dealership-Assistant/form-frontend-service \
   --ref task/extVariables
 ```
+7. After you run `terraform destroy`, purge soft-deleted AI resources to free up quota:
+```
+az cognitiveservices account purge -l eastus2 -g carclinch-rg-dev -n carclinch-foundry-dev
+```
 
 (depending on when you look at this, ref may be `main`; that task branch should be a safe up to date bet though)
 
