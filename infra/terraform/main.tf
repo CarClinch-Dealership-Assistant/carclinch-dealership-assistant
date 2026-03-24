@@ -546,6 +546,10 @@ resource "azurerm_linux_function_app" "email" {
     # Storage account name surfaced to app code; auth via managed identity
     STORAGE_ACCOUNT_NAME = azurerm_storage_account.main.name
 
+    # Durable Timer; value in hours for each follow-up sequence
+    FOLLOWUP_TIMER = var.followup_timer
+    FOLLOWUP_TIME_STRUCTURE = var.followup_time_structure
+
     # Gmail credentials via KV references
     GMAIL_USER         = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=GMAIL-USER)"
     GMAIL_APP_PASSWORD = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=GMAIL-APP-PASSWORD)"

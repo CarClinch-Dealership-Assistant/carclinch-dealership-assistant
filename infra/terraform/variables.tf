@@ -75,3 +75,15 @@ variable "github_token" {
   description = "GitHub PAT with repo and workflow scopes"
 }
 
+# == Follow-Up Configuration ===================================================
+variable "followup_timer" {
+  type        = string
+  description = "Comma-separated list of hours to wait between follow-up sequences"
+  default     = "24,48,72"
+}
+
+variable "followup_time_structure" {
+  type        = string
+  description = "Time structure for follow-up sequences for testing (e.g., 'hours', 'minutes', 'seconds')"
+  default     = "hours"
+}
