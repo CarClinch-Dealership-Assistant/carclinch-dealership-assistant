@@ -68,3 +68,14 @@ output "key_vault_name" {
   value       = azurerm_key_vault.main.name
   description = "Key Vault name; useful for az keyvault secret list --vault-name <name>"
 }
+
+# == Azure AI Language =========================================================
+output "language_endpoint" {
+  value       = azurerm_cognitive_account.language.endpoint
+  description = "Set as AZURE_LANGUAGE_ENDPOINT in local.settings.json for local dev"
+}
+output "language_key" {
+  value       = azurerm_cognitive_account.language.primary_access_key
+  sensitive   = true
+  description = "Set as AZURE_LANGUAGE_KEY in local.settings.json for local dev"
+}

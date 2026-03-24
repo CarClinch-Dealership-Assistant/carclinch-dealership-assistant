@@ -2,7 +2,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.0"
+      version = "~> 4.19"
     }
     github = {
       source  = "integrations/github"
@@ -299,6 +299,36 @@ resource "azurerm_cognitive_deployment" "gpt" {
   }
 }
 
+# == Azure AI Language (PII) ===================================================
+resource "azurerm_cognitive_account" "language" {
+  name                = "${local.p}-language-${local.env}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  kind                = "TextAnalytics"
+  sku_name            = "F0"
+
+  custom_subdomain_name         = "${local.p}-language-${local.env}"
+  public_network_access_enabled = true
+
+  tags = local.tags
+}
+
+resource "azurerm_key_vault_secret" "language_endpoint" {
+  name         = "AZURE-LANGUAGE-ENDPOINT"
+  value        = azurerm_cognitive_account.language.endpoint
+  key_vault_id = azurerm_key_vault.main.id
+  tags         = local.tags
+  depends_on   = [azurerm_key_vault_access_policy.terraform]
+}
+
+resource "azurerm_key_vault_secret" "language_key" {
+  name         = "AZURE-LANGUAGE-KEY"
+  value        = azurerm_cognitive_account.language.primary_access_key
+  key_vault_id = azurerm_key_vault.main.id
+  tags         = local.tags
+  depends_on   = [azurerm_key_vault_access_policy.terraform]
+}
+
 # == Managed Identity RBAC assignments =========================================
 
 # Cosmos DB; built-in data contributor role
@@ -524,6 +554,10 @@ resource "azurerm_linux_function_app" "email" {
     OPENAI_API_KEY    = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=OPENAI-API-KEY)"
     OPENAI_BASE_URL   = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=OPENAI-BASE-URL)"
     OPENAI_MODEL_NAME = var.foundry_model_name
+
+    # Azure Language; key + endpoint via KV references
+    AZURE_LANGUAGE_ENDPOINT = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=AZURE-LANGUAGE-ENDPOINT)"
+    AZURE_LANGUAGE_KEY      = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=AZURE-LANGUAGE-KEY)"
   }
 
   tags = local.tags
