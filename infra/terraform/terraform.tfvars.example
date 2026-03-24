@@ -8,4 +8,4 @@ environment        = "dev"
 location           = "eastus2"
 
 followup_time_structure = "seconds"
-followup_timer = "70,140,210"
+followup_timer = "120,240,480"

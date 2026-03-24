@@ -79,3 +79,13 @@ output "language_key" {
   sensitive   = true
   description = "Set as AZURE_LANGUAGE_KEY in local.settings.json for local dev"
 }
+
+# == Follow-up Timer Settings =========================================================
+output "followup_timer" {
+  value       = var.followup_timer
+  description = "Comma-separated list of hours to wait between follow-up sequences"
+}
+output "followup_time_structure" {
+  value       = var.followup_time_structure
+  description = "Time structure for follow-up sequences for testing (e.g., 'hours', 'minutes', 'seconds')"
+}
