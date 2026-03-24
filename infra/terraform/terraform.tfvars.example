@@ -6,3 +6,6 @@ gmail_app_password = ""
 prefix             = "carclinch"
 environment        = "dev"
 location           = "eastus2"
+
+followup_time_structure = "seconds"
+followup_timer = "70,140,210"
