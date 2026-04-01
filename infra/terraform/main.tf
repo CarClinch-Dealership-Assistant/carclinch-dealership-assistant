@@ -28,6 +28,7 @@ resource "github_actions_secret" "backend_url" {
   plaintext_value = "https://${azurerm_linux_function_app.backend.default_hostname}/api"
 }
 
+# We will delete the purges in handover
 provider "azurerm" {
   features {
     key_vault {
@@ -109,7 +110,7 @@ resource "azurerm_cosmosdb_account" "main" {
   kind                = "GlobalDocumentDB"
 
   public_network_access_enabled = true
-  
+
   ip_range_filter = [chomp(data.http.my_public_ip.response_body), "0.0.0.0"]
 
   capabilities { name = "EnableServerless" }
@@ -137,7 +138,7 @@ resource "null_resource" "cosmos_seed" {
   }
 
   provisioner "local-exec" {
-    command = "pip install azure-cosmos --quiet && python ${path.module}/init.py"
+    command = "${var.pip_cmd} install azure-cosmos --quiet --break-system-packages && ${var.python_cmd} ${path.module}/init.py"
 
     environment = {
       COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
@@ -185,8 +186,9 @@ resource "azurerm_key_vault" "main" {
   resource_group_name           = azurerm_resource_group.main.name
   tenant_id                     = data.azurerm_client_config.current.tenant_id
   sku_name                      = "standard"
-  soft_delete_retention_days    = 7
-  purge_protection_enabled      = false
+  soft_delete_retention_days    = 90
+  purge_protection_enabled      = false // true in handoff; disable purge protection since we want to allow terraform to fully clean up
+  rbac_authorization_enabled    = true
   public_network_access_enabled = true
 
   network_acls {
@@ -198,26 +200,22 @@ resource "azurerm_key_vault" "main" {
 }
 
 # Allow Terraform caller to manage secrets
-resource "azurerm_key_vault_access_policy" "terraform" {
-  key_vault_id       = azurerm_key_vault.main.id
-  tenant_id          = data.azurerm_client_config.current.tenant_id
-  object_id          = data.azurerm_client_config.current.object_id
-  secret_permissions = ["Get", "List", "Set", "Delete", "Purge", "Recover"]
+resource "azurerm_role_assignment" "terraform_kv" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
 }
 
-# Allow app managed identities to read secrets
-resource "azurerm_key_vault_access_policy" "backend" {
-  key_vault_id       = azurerm_key_vault.main.id
-  tenant_id          = data.azurerm_client_config.current.tenant_id
-  object_id          = azurerm_linux_function_app.backend.identity[0].principal_id
-  secret_permissions = ["Get", "List"]
+resource "azurerm_role_assignment" "backend_kv" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_linux_function_app.backend.identity[0].principal_id
 }
 
-resource "azurerm_key_vault_access_policy" "email" {
-  key_vault_id       = azurerm_key_vault.main.id
-  tenant_id          = data.azurerm_client_config.current.tenant_id
-  object_id          = azurerm_linux_function_app.email.identity[0].principal_id
-  secret_permissions = ["Get", "List"]
+resource "azurerm_role_assignment" "email_kv" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
 }
 
 # == Key Vault secrets =========================================================
@@ -228,7 +226,8 @@ resource "azurerm_key_vault_secret" "gmail_user" {
   value        = var.gmail_user
   key_vault_id = azurerm_key_vault.main.id
   tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
+  depends_on   = [azurerm_role_assignment.terraform_kv]
+  content_type = "text/plain"
 }
 
 resource "azurerm_key_vault_secret" "gmail_app_password" {
@@ -236,7 +235,8 @@ resource "azurerm_key_vault_secret" "gmail_app_password" {
   value        = var.gmail_app_password
   key_vault_id = azurerm_key_vault.main.id
   tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
+  depends_on   = [azurerm_role_assignment.terraform_kv]
+  content_type = "text/plain"
 }
 
 # Foundry key & endpoint auto-populated from provisioned resource; no manual copy needed
@@ -245,7 +245,8 @@ resource "azurerm_key_vault_secret" "openai_api_key" {
   value        = azurerm_cognitive_account.foundry.primary_access_key
   key_vault_id = azurerm_key_vault.main.id
   tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
+  depends_on   = [azurerm_role_assignment.terraform_kv]
+  content_type = "text/plain"
 }
 
 resource "azurerm_key_vault_secret" "openai_base_url" {
@@ -253,7 +254,8 @@ resource "azurerm_key_vault_secret" "openai_base_url" {
   value        = "${azurerm_cognitive_account.foundry.endpoint}openai/v1/"
   key_vault_id = azurerm_key_vault.main.id
   tags         = local.tags
-  depends_on   = [azurerm_key_vault_access_policy.terraform]
+  depends_on   = [azurerm_role_assignment.terraform_kv]
+  content_type = "text/plain"
 }
 
 # == Microsoft Foundry =======================================================
@@ -306,51 +308,36 @@ resource "azurerm_cosmosdb_sql_role_assignment" "email" {
 
 # Service Bus; sender for backend, receiver for email
 resource "azurerm_role_assignment" "backend_sb_sender" {
-  scope                = azurerm_servicebus_namespace.main.id
+  scope                = azurerm_servicebus_queue.leads.id
   role_definition_name = "Azure Service Bus Data Sender"
   principal_id         = azurerm_linux_function_app.backend.identity[0].principal_id
 }
 
 resource "azurerm_role_assignment" "email_sb_receiver" {
-  scope                = azurerm_servicebus_namespace.main.id
+  scope                = azurerm_servicebus_queue.leads.id
   role_definition_name = "Azure Service Bus Data Receiver"
   principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
 }
 
-# Storage; both functions need blob + queue + table for the Functions runtime
-resource "azurerm_role_assignment" "backend_storage_blob" {
+locals {
+  storage_roles = toset([
+    "Storage Blob Data Contributor",
+    "Storage Queue Data Contributor",
+    "Storage Table Data Contributor",
+  ])
+}
+
+resource "azurerm_role_assignment" "backend_storage" {
+  for_each             = local.storage_roles
   scope                = azurerm_storage_account.main.id
-  role_definition_name = "Storage Blob Data Contributor"
+  role_definition_name = each.value
   principal_id         = azurerm_linux_function_app.backend.identity[0].principal_id
 }
 
-resource "azurerm_role_assignment" "backend_storage_queue" {
+resource "azurerm_role_assignment" "email_storage" {
+  for_each             = local.storage_roles
   scope                = azurerm_storage_account.main.id
-  role_definition_name = "Storage Queue Data Contributor"
-  principal_id         = azurerm_linux_function_app.backend.identity[0].principal_id
-}
-
-resource "azurerm_role_assignment" "backend_storage_table" {
-  scope                = azurerm_storage_account.main.id
-  role_definition_name = "Storage Table Data Contributor"
-  principal_id         = azurerm_linux_function_app.backend.identity[0].principal_id
-}
-
-resource "azurerm_role_assignment" "email_storage_blob" {
-  scope                = azurerm_storage_account.main.id
-  role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
-}
-
-resource "azurerm_role_assignment" "email_storage_queue" {
-  scope                = azurerm_storage_account.main.id
-  role_definition_name = "Storage Queue Data Contributor"
-  principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
-}
-
-resource "azurerm_role_assignment" "email_storage_table" {
-  scope                = azurerm_storage_account.main.id
-  role_definition_name = "Storage Table Data Contributor"
+  role_definition_name = each.value
   principal_id         = azurerm_linux_function_app.email.identity[0].principal_id
 }
 
@@ -412,42 +399,6 @@ resource "azurerm_service_plan" "main" {
   tags                = local.tags
 }
 
-# == Frontend; App Service =====================================================
-# resource "azurerm_linux_web_app" "frontend" {
-#   name                = "${local.p}-frontend-${local.env}"
-#   location            = azurerm_resource_group.main.location
-#   resource_group_name = azurerm_resource_group.main.name
-#   service_plan_id     = azurerm_service_plan.frontend.id
-#   https_only          = true
-
-#   identity { type = "SystemAssigned" }
-
-#   site_config {
-#     always_on           = true
-#     ftps_state          = "Disabled"
-#     http2_enabled       = true
-#     minimum_tls_version = "1.2"
-
-#     application_stack {
-#       docker_image_name   = var.frontend_image
-#       docker_registry_url = "https://index.docker.io"
-#     }
-#   }
-
-#   app_settings = {
-#     WEBSITES_ENABLE_APP_SERVICE_STORAGE = "false"
-#     DOCKER_ENABLE_CI                    = "true"
-#     WEBSITES_PORT                       = "80"
-#     BACKEND_URL                         = "https://${local.p}-backend-${local.env}.azurewebsites.net/api"
-#   }
-
-#   logs {
-#     application_logs { file_system_level = "Warning" }
-#   }
-
-#   tags = local.tags
-# }
-
 # == Backend; Function App =====================================================
 resource "azurerm_linux_function_app" "backend" {
   name                       = "${local.p}-backend-${local.env}"
@@ -487,8 +438,8 @@ resource "azurerm_linux_function_app" "backend" {
     APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.backend.connection_string
 
     # Cosmos; endpoint only, managed identity handles auth
-    COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
-    COSMOS_DB_NAME  = var.cosmos_db_name
+    COSMOS_ENDPOINT   = azurerm_cosmosdb_account.main.endpoint
+    COSMOS_DB_NAME    = var.cosmos_db_name
     COSMOS_VERIFY_SSL = "true"
 
     # Service Bus; namespace hostname only, managed identity handles auth
@@ -499,7 +450,7 @@ resource "azurerm_linux_function_app" "backend" {
   }
 
   tags       = local.tags
-  depends_on = [azurerm_key_vault_access_policy.terraform]
+  depends_on = [azurerm_role_assignment.terraform_kv]
 }
 
 # == Email Processing; Durable Function App ====================================
@@ -537,8 +488,8 @@ resource "azurerm_linux_function_app" "email" {
     APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.email.connection_string
 
     # Cosmos; endpoint only, managed identity handles auth
-    COSMOS_ENDPOINT = azurerm_cosmosdb_account.main.endpoint
-    COSMOS_DB_NAME  = var.cosmos_db_name
+    COSMOS_ENDPOINT   = azurerm_cosmosdb_account.main.endpoint
+    COSMOS_DB_NAME    = var.cosmos_db_name
     COSMOS_VERIFY_SSL = "true"
 
     # Service Bus; namespace hostname only, managed identity handles auth
@@ -559,7 +510,46 @@ resource "azurerm_linux_function_app" "email" {
 
   tags = local.tags
   depends_on = [
-    azurerm_key_vault_access_policy.terraform,
+    azurerm_role_assignment.terraform_kv,
     azurerm_cognitive_deployment.gpt,
   ]
+}
+
+resource "azurerm_monitor_diagnostic_setting" "kv" {
+  name                       = "kv-diag"
+  target_resource_id         = azurerm_key_vault.main.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  enabled_log {
+    category = "AuditEvent"
+  }
+  metric {
+    category = "AllMetrics"
+    enabled  = false
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "servicebus" {
+  name                       = "sb-diag"
+  target_resource_id         = azurerm_servicebus_namespace.main.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  enabled_log {
+    category = "OperationalLogs"
+  }
+  metric {
+    category = "AllMetrics"
+    enabled  = false
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "cosmos" {
+  name                       = "cosmos-diag"
+  target_resource_id         = azurerm_cosmosdb_account.main.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  enabled_log {
+    category = "DataPlaneRequests"
+  }
+  metric {
+    category = "Requests"
+    enabled  = false
+  }
 }

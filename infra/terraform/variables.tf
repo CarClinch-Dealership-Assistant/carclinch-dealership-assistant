@@ -74,3 +74,16 @@ variable "followup_timer" {
   description = "Comma-separated time intervals for follow-ups (e.g. '24,24,24' for 3 follow-ups at 24 hours)"
   default     = "24,24,24"
 }
+
+# == Local Development Overrides =================================================
+variable "python_cmd" {
+  description = "Python executable name (python3 on Linux/Mac, python on Windows)"
+  type        = string
+  default     = "python3"
+}
+
+variable "pip_cmd" {
+  description = "Pip executable name (pip3 on Linux/Mac, pip on Windows)"
+  type        = string
+  default     = "pip3"
+}

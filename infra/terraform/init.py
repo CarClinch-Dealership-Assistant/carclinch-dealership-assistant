@@ -26,7 +26,7 @@ DEALERSHIPS = [
     {
         "id": "dealer_8c1d9f22aa",
         "name": "Example Dealership",
-        "email": "dealer@example.com",
+        "email": "carclinch-dev@outlooks.com",
         "phone": "555-1234",
         "address1": "123 Main St",
         "address2": "",
@@ -37,7 +37,7 @@ DEALERSHIPS = [
     {
         "id": "dealer_4f92ab10c3",
         "name": "Auto World Ottawa",
-        "email": "sales@autoworld.ca",
+        "email": "carclinch-dev@outlooks.com",
         "phone": "555-7777",
         "address1": "77 Carling Ave",
         "address2": "Unit 2",
@@ -48,7 +48,7 @@ DEALERSHIPS = [
     {
         "id": "dealer_9a3c12be55",
         "name": "Prestige Motors Montreal",
-        "email": "contact@prestigemotors.ca",
+        "email": "carclinch-dev@outlooks.com",
         "phone": "514-900-1111",
         "address1": "1200 Rue Peel",
         "address2": "Suite 100",
@@ -59,7 +59,7 @@ DEALERSHIPS = [
     {
         "id": "dealer_2f7e44dc88",
         "name": "Northern Trucks Toronto",
-        "email": "sales@northerntrucks.ca",
+        "email": "carclinch-dev@outlooks.com",
         "phone": "416-555-3030",
         "address1": "890 Lake Shore Blvd W",
         "address2": "",
