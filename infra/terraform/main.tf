@@ -43,6 +43,10 @@ provider "azurerm" {
   }
 }
 
+data "http" "my_public_ip" {
+  url = "https://ifconfig.me/ip"
+}
+
 data "azurerm_client_config" "current" {}
 
 # == Locals: naming + tags =====================================================
@@ -105,7 +109,8 @@ resource "azurerm_cosmosdb_account" "main" {
   kind                = "GlobalDocumentDB"
 
   public_network_access_enabled = true
-  ip_range_filter               = [var.terraform_client_ip, "0.0.0.0"]
+  
+  ip_range_filter = [chomp(data.http.my_public_ip.response_body), "0.0.0.0"]
 
   capabilities { name = "EnableServerless" }
 

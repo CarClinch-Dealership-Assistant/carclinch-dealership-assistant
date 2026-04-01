@@ -22,19 +22,6 @@ variable "tags" {
   default     = {}
 }
 
-# == Network ===================================================================
-variable "terraform_client_ip" {
-  type        = string
-  description = "Your public IP; added to Cosmos DB IP allowlist so Terraform can seed data. Find it at https://ifconfig.me"
-}
-
-# == Frontend ==================================================================
-variable "frontend_image" {
-  type        = string
-  description = "Docker image for the frontend"
-  default     = "carclinchda/form-frontend-service:latest"
-}
-
 # == Cosmos DB =================================================================
 variable "cosmos_db_name" {
   type        = string
@@ -75,3 +62,15 @@ variable "github_token" {
   description = "GitHub PAT with repo and workflow scopes"
 }
 
+# == Follow-up Timer ===========================================================
+variable "followup_time_structure" {
+  type        = string
+  description = "Time structure for follow-up timer (e.g. 'seconds', 'minutes', 'hours')"
+  default     = "hours"
+}
+
+variable "followup_timer" {
+  type        = string
+  description = "Comma-separated time intervals for follow-ups (e.g. '24,24,24' for 3 follow-ups at 24 hours)"
+  default     = "24,24,24"
+}
