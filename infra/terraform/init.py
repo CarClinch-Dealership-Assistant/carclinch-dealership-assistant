@@ -9,6 +9,7 @@ Usage (Terraform passes env vars automatically):
 from azure.cosmos import CosmosClient, PartitionKey, exceptions
 import os
 import sys
+import uuid
 
 ENDPOINT = os.environ["COSMOS_ENDPOINT"]
 KEY      = os.environ["COSMOS_KEY"]
@@ -19,14 +20,15 @@ CONTAINERS = [
     { "id": "vehicles",      "pk": "/dealerId" },
     { "id": "leads",         "pk": "/id" },
     { "id": "conversations", "pk": "/leadId" },
-    { "id": "messages",      "pk": "/conversationId" }
+    { "id": "messages",      "pk": "/conversationId" },
+    { "id": "appointments",  "pk": "/dealerId" } # Added appointments container
 ]
 
 DEALERSHIPS = [
     {
         "id": "dealer_8c1d9f22aa",
         "name": "Example Dealership",
-        "email": "carclinch-dev@outlooks.com",
+        "email": "carclinch-dev@outlook.com",
         "phone": "555-1234",
         "address1": "123 Main St",
         "address2": "",
@@ -37,7 +39,7 @@ DEALERSHIPS = [
     {
         "id": "dealer_4f92ab10c3",
         "name": "Auto World Ottawa",
-        "email": "carclinch-dev@outlooks.com",
+        "email": "carclinch-dev@outlook.com",
         "phone": "555-7777",
         "address1": "77 Carling Ave",
         "address2": "Unit 2",
@@ -48,7 +50,7 @@ DEALERSHIPS = [
     {
         "id": "dealer_9a3c12be55",
         "name": "Prestige Motors Montreal",
-        "email": "carclinch-dev@outlooks.com",
+        "email": "carclinch-dev@outlook.com",
         "phone": "514-900-1111",
         "address1": "1200 Rue Peel",
         "address2": "Suite 100",
@@ -59,7 +61,7 @@ DEALERSHIPS = [
     {
         "id": "dealer_2f7e44dc88",
         "name": "Northern Trucks Toronto",
-        "email": "carclinch-dev@outlooks.com",
+        "email": "carclinch-dev@outlook.com",
         "phone": "416-555-3030",
         "address1": "890 Lake Shore Blvd W",
         "address2": "",
@@ -260,59 +262,44 @@ VEHICLES = [
     }
 ]
 
-CASCADE_DELETE_CONVERSATION = """
-function cascadeDeleteConversation(conversationId) {
-    var collection = getContext().getCollection();
-    var response = getContext().getResponse();
-    var query = {
-        query: "SELECT * FROM c WHERE c.conversationId = @cid",
-        parameters: [{ name: "@cid", value: conversationId }]
-    };
-    var docs = [];
-    var accepted = collection.queryDocuments(collection.getSelfLink(), query, function (err, feed) {
-        if (err) throw err;
-        docs = feed;
-        deleteDocs();
-    });
-    if (!accepted) throw new Error("Query not accepted");
-    function deleteDocs() {
-        if (docs.length === 0) { response.setBody("Cascade delete complete"); return; }
-        var doc = docs.pop();
-        var accepted = collection.deleteDocument(doc._self, function (err) {
-            if (err) throw err;
-            deleteDocs();
-        });
-        if (!accepted) throw new Error("Delete not accepted");
+APPOINTMENTS = [
+    {
+        "id": f"appt_{uuid.uuid4().hex[:10]}",
+        "dealerId": "dealer_8c1d9f22aa",
+        "vehicleId": "vehicle_3e9f1a2c44", # Honda Civic
+        "leadId": "lead_mock_001",
+        "conversationId": "conv_mock_001",
+        "appointmentDate": "2026-04-10",
+        "timeslot": "10" # 10 AM
+    },
+    {
+        "id": f"appt_{uuid.uuid4().hex[:10]}",
+        "dealerId": "dealer_8c1d9f22aa",
+        "vehicleId": "vehicle_7b2c9e11d0", # Toyota Corolla
+        "leadId": "lead_mock_002",
+        "conversationId": "conv_mock_002",
+        "appointmentDate": "2026-04-10",
+        "timeslot": "14" # 2 PM
+    },
+    {
+        "id": f"appt_{uuid.uuid4().hex[:10]}",
+        "dealerId": "dealer_4f92ab10c3",
+        "vehicleId": "vehicle_1d8f33aa91", # Ford Fusion
+        "leadId": "lead_mock_003",
+        "conversationId": "conv_mock_003",
+        "appointmentDate": "2026-04-12",
+        "timeslot": "16" # 4 PM
+    },
+    {
+        "id": f"appt_{uuid.uuid4().hex[:10]}",
+        "dealerId": "dealer_9a3c12be55",
+        "vehicleId": "vehicle_5c1a77ff02", # BMW 5 Series
+        "leadId": "lead_mock_004",
+        "conversationId": "conv_mock_004",
+        "appointmentDate": "2026-04-15",
+        "timeslot": "9" # 9 AM
     }
-}
-"""
-
-CASCADE_DELETE_LEAD = """
-function cascadeDeleteLead(leadId) {
-    var collection = getContext().getCollection();
-    var response = getContext().getResponse();
-    var query = {
-        query: "SELECT * FROM c WHERE c.leadId = @lid",
-        parameters: [{ name: "@lid", value: leadId }]
-    };
-    var docs = [];
-    var accepted = collection.queryDocuments(collection.getSelfLink(), query, function (err, feed) {
-        if (err) throw err;
-        docs = feed;
-        deleteDocs();
-    });
-    if (!accepted) throw new Error("Query not accepted");
-    function deleteDocs() {
-        if (docs.length === 0) { response.setBody("Cascade delete complete"); return; }
-        var doc = docs.pop();
-        var accepted = collection.deleteDocument(doc._self, function (err) {
-            if (err) throw err;
-            deleteDocs();
-        });
-        if (!accepted) throw new Error("Delete not accepted");
-    }
-}
-"""
+]
 
 def main():
     print(f"Connecting to Cosmos DB at {ENDPOINT}...")
@@ -328,28 +315,6 @@ def main():
             partition_key=PartitionKey(path=c["pk"])
         )
 
-        if c["id"] == "messages":
-            try:
-                container.scripts.delete_stored_procedure("cascadeDeleteConversation")
-            except exceptions.CosmosResourceNotFoundError:
-                pass
-            print("  Uploading cascadeDeleteConversation stored procedure...")
-            container.scripts.create_stored_procedure({
-                "id": "cascadeDeleteConversation",
-                "body": CASCADE_DELETE_CONVERSATION
-            })
-
-        if c["id"] == "conversations":
-            try:
-                container.scripts.delete_stored_procedure("cascadeDeleteLead")
-            except exceptions.CosmosResourceNotFoundError:
-                pass
-            print("  Uploading cascadeDeleteLead stored procedure...")
-            container.scripts.create_stored_procedure({
-                "id": "cascadeDeleteLead",
-                "body": CASCADE_DELETE_LEAD
-            })
-
     print("Seeding dealerships...")
     dealerships = db.get_container_client("dealerships")
     for d in DEALERSHIPS:
@@ -359,6 +324,11 @@ def main():
     vehicles = db.get_container_client("vehicles")
     for v in VEHICLES:
         vehicles.upsert_item(v)
+
+    print("Seeding appointments...")
+    appointments = db.get_container_client("appointments")
+    for a in APPOINTMENTS:
+        appointments.upsert_item(a)
 
     print("Seed complete.")
 
