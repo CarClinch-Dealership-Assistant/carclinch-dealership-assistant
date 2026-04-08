@@ -2,14 +2,10 @@
 
 ## Env Setup
 
-Copy contents of `.env.copy` into `.env`. To run the `init.py` script, be sure to set the `AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE` to your machine's LAN IP. You can find it by running:
-
-```bash
-ipconfig
-```
+Copy contents of `.env.copy` into `.env`.
 To find the OPENAI env variables, make sure to create the Foundry resource, deploy the gpt-4.1-mini model, and find the values in `Foundry` -> `Playgrounds` -> `View Code` -> Scroll down and copy paste the key and URL values.
 
-Create an app password for your personal Gmail inbox by going to `Manage your Google Account` -> `Security & sign-in` -> Search `App passwords` -> Create a new one
+Create an app password for your personal Gmail inbox by going to `Manage your Google Account` -> `Security & sign-in` -> Search `App passwords` -> Create a new one. OR use the one I shared with the team before.
 
 The GMAIL values are your email address and that created app password with no spaces.
 
@@ -27,48 +23,9 @@ Activate venv and in `/infra/local`:
 docker compose up -d
 ```
 
-## Install Certificate for Cosmos DB Emulator
-
-To access the browser explorer for Cosmos DB emulator:
-
-https://localhost:8081/_explorer/index.html
-
-You must install one of the certificates located in /certs
-
-### Windows
-
-1. Double-click `emulatorcert.crt`
-2. Choose `Local Machine`
-
-3. Choose `Place all certificates in the following store`
-
-Click `Browse…` and select:
-
-```
-Trusted Root Certification Authorities
-```
-
-1. Finish -> Yes (to trust the certificate)
-
-Once installed, Windows trusts the Cosmos Emulator’s HTTPS certificate.
-
-### macOS
-
-```bash
-sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain emulator.pem
-```
-
-### Linux (Ubuntu/Debian)
-
-```bash
-sudo cp emulator.pem /usr/local/share/ca-certificates/emulator.crt
-sudo update-ca-certificates
-```
-
 ## Seed DB
 
-Make sure to set `AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE` to your local IP esp on Windows.
-
+Activate .venv, then:
 ```bash
 py init.py
 ```
@@ -85,6 +42,6 @@ And click the following options:
 
 <img width="1342" height="850" alt="image" src="https://github.com/user-attachments/assets/1ec4a030-8009-46ef-9887-ff1f1ea29882" />
 
-### Web Form
+### Form Frontend 
 
 http://localhost:8080/
