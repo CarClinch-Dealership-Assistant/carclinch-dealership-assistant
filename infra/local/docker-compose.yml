@@ -70,18 +70,18 @@ services:
   # email processing service
   email-processing:
     container_name: "email-processing-service"
-    image: carclinchda/email-processing-service:sprint2
-    pull_policy: always
+    image: carclinchda/email-processing-service:appointments
     environment:
       FUNCTIONS_WORKER_RUNTIME_VERSION: "3.12"
       AZURE_FUNCTIONS_ENVIRONMENT: "Development"
       WEBSITE_HOSTNAME: "localhost:80"
       AzureWebJobsStorage: "UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite"
-      AzureWebJobsServiceBus: ${SB_CONNECTION_STRING}
+      AzureWebJobsServiceBus: ${SERVICE_BUS_CONNECTION_STRING}
       COSMOS_CONNECTION_STRING: ${COSMOS_CONNECTION_STRING}
       COSMOS_DB_NAME: "${COSMOS_DB_NAME:-CarClinchDB}"
       COSMOS_DB_CONTAINER: "${COSMOS_DB_CONTAINER:-messages}"
       COSMOS_VERIFY_SSL: ${COSMOS_VERIFY_SSL:-false}
+      COSMOS_KEY: "${COSMOS_KEY}"
       GMAIL_USER: "${GMAIL_USER}"
       GMAIL_APP_PASSWORD: "${GMAIL_APP_PASSWORD}"
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
@@ -97,7 +97,7 @@ services:
 # form backend service
   form-backend:
     container_name: "form-backend-service"
-    image: carclinchda/form-backend-service:swa
+    image: carclinchda/form-backend-service:latest
     pull_policy: always
     ports:
       - "7071:80"
@@ -109,8 +109,9 @@ services:
       COSMOS_ENDPOINT: "${COSMOS_ENDPOINT}"
       COSMOS_DB_NAME: "${COSMOS_DB_NAME:-CarClinchDB}"
       COSMOS_CONNECTION_STRING: ${COSMOS_CONNECTION_STRING}
+      COSMOS_KEY: "${COSMOS_KEY}"
       COSMOS_VERIFY_SSL: ${COSMOS_VERIFY_SSL:-false}
-      SB_CONNECTION_STRING: ${SB_CONNECTION_STRING}
+      SERVICE_BUS_CONNECTION_STRING: ${SERVICE_BUS_CONNECTION_STRING}
       SB_NAMESPACE: ${SB_NAMESPACE:-"servicebus-emulator"}
     depends_on:
       - cosmosdb
@@ -120,7 +121,7 @@ services:
 # form frontend service
   form-frontend:
     container_name: "form-frontend-service"
-    image: carclinchda/form-frontend-service:swa
+    image: carclinchda/form-frontend-service:latest
     pull_policy: always
     ports:
       - "8080:80"
