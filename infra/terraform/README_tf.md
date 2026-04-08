@@ -38,11 +38,11 @@ func azure functionapp publish carclinch-backend-dev --python
 
 ### Push Zip Email Function
 
-This requires you to navigate to cloned local repo for `email-processing-service` and assumes that it is on `feature/prompt-finetuning` branch.
+This requires you to navigate to cloned local repo for `email-processing-service` and assumes that it is on `feature/assignment-og` branch.
 
 ```
 git fetch
-git checkout feature/replying-email-prompt
+git checkout feature/assignment-og
 func azure functionapp publish carclinch-email-dev --python
 ```
 
