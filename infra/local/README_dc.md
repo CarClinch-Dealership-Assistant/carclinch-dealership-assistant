@@ -9,13 +9,6 @@ Create an app password for your personal Gmail inbox by going to `Manage your Go
 
 The GMAIL values are your email address and that created app password with no spaces.
 
-Then:
-
-```bash
-# start venv from cosmosdb
-source cosmosdb/.venv/Scripts/activate
-```
-
 ## Docker Compose
 
 Activate venv and in `/infra/local`:

@@ -263,10 +263,29 @@ resource "azurerm_cognitive_account" "foundry" {
   name                = "${local.p}-foundry-${local.env}"
   location            = var.location
   resource_group_name = azurerm_resource_group.main.name
-  kind                = "OpenAI"
+  kind                = "AIServices"
   sku_name            = "S0"
 
+  custom_subdomain_name      = "${local.p}-foundry-${local.env}"
+  project_management_enabled = true
+
   public_network_access_enabled = true
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  tags = local.tags
+}
+
+resource "azurerm_cognitive_account_project" "main" {
+  name                 = "${local.p}-foundry-project-${local.env}"
+  location             = var.location
+  cognitive_account_id = azurerm_cognitive_account.foundry.id
+
+  identity {
+    type = "SystemAssigned"
+  }
 
   tags = local.tags
 }
@@ -282,7 +301,7 @@ resource "azurerm_cognitive_deployment" "gpt" {
   }
 
   sku {
-    name     = "DataZoneStandard"
+    name     = "GlobalStandard"
     capacity = 10
   }
 }
@@ -380,15 +399,6 @@ resource "azurerm_static_web_app" "frontend" {
   tags = local.tags
 }
 
-# resource "azurerm_service_plan" "frontend" {
-#   name                = "${local.p}-plan-frontend-${local.env}"
-#   location            = azurerm_resource_group.main.location
-#   resource_group_name = azurerm_resource_group.main.name
-#   os_type             = "Linux"
-#   sku_name            = "B1"
-#   tags                = local.tags
-# }
-
 # == App Service Plan (Functions; Consumption) =================================
 resource "azurerm_service_plan" "main" {
   name                = "${local.p}-plan-${local.env}"
@@ -479,6 +489,10 @@ resource "azurerm_linux_function_app" "email" {
   app_settings = {
     FUNCTIONS_WORKER_RUNTIME       = "python"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+
+    FOLLOWUP_TIMER          = var.followup_timer
+    FOLLOWUP_TIME_STRUCTURE = var.followup_time_structure
+    ADMIN_EMAIL             = var.admin_email
 
     # Service Bus trigger binding; identity auth
     AzureWebJobsServiceBus__fullyQualifiedNamespace = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"

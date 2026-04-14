@@ -41,6 +41,11 @@ variable "gmail_app_password" {
   description = "Gmail App Password (not your account password; generate one at myaccount.google.com/apppasswords)"
 }
 
+variable "admin_email" {
+  type        = string
+  description = "Email address to receive admin notifications (e.g. booking appointments, escalations, etc.)"
+}
+
 # == Azure AI Foundry ==========================================================
 
 variable "foundry_model_name" {

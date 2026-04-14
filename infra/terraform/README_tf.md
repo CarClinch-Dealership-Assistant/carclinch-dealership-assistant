@@ -6,6 +6,7 @@
 ```
 terraform init
 ```
+2. Create a **Personal access token (classic)** on GitHub via Settings -> Developer Tools -> Tokens. Ensure you enable `repo` and `workflow` scope.
 2. Copy `terraform.tfvars.example` and set `gmail_app_password`, `gmail_user`, and `github_token`. Adjust the other tfvars as needed, like region if your student sub doesn't use the default `eastus2`. Keep in mind that SWA can only deploy in regions `'westus2,centralus,eastus2,westeurope,eastasia'`
 3. Run:
 ```
@@ -33,7 +34,7 @@ This requires you to navigate to cloned local repo for `form-backend-service` an
 ```
 git fetch
 git checkout main
-func azure functionapp publish carclinch-backend-dev --python
+func azure functionapp publish carclinchalice-backend-dev --python
 ```
 
 ### Push Zip Email Function
@@ -43,7 +44,7 @@ This requires you to navigate to cloned local repo for `email-processing-service
 ```
 git fetch
 git checkout feature/replying-email-prompt
-func azure functionapp publish carclinch-email-dev --python
+func azure functionapp publish carclinchalice-email-dev --python
 ```
 
 ## Test
