@@ -34,7 +34,7 @@ This requires you to navigate to cloned local repo for `form-backend-service` an
 ```
 git fetch
 git checkout main
-func azure functionapp publish carclinchalice-backend-dev --python
+func azure functionapp publish carclinch-backend-dev --python
 ```
 
 ### Push Zip Email Function
