@@ -1,8 +1,0 @@
-github_token       = ""
-
-gmail_user         = ""
-gmail_app_password = ""
-
-prefix             = "carclinch"
-environment        = "dev"
-location           = "eastus2"

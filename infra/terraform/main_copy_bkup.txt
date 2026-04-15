@@ -1,10 +1,8 @@
 terraform {
-  required_version = ">= 1.7"
-
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.25" # bumped from 4.19 — ensures azurerm_cognitive_account_project GA support
+      version = "~> 4.19"
     }
     github = {
       source  = "integrations/github"
@@ -25,13 +23,6 @@ provider "github" {
   owner = "CarClinch-Dealership-Assistant"
   token = var.github_token
 }
-
-
-# for cors permission
-# az functionapp cors add \
-#   --name carclinchcc-backend-dev \
-#   --resource-group carclinch2-func-rg-dev \
-#   --allowed-origins "https://gray-tree-0ad88c40f.2.azurestaticapps.net"
 
 # count guard: skip if no token is supplied (local dev, CI without GitHub creds)
 resource "github_actions_secret" "swa_token" {
@@ -129,9 +120,7 @@ resource "azurerm_cosmosdb_account" "main" {
   kind                = "GlobalDocumentDB"
 
   public_network_access_enabled = true
-  # 0.0.0.0 = Azure portal access; deployer IP added dynamically.
-  # Pass extra_cosmos_ips in CI/CD (e.g. TF_VAR_extra_cosmos_ips=["runner-ip"]) so the seed script can reach Cosmos.
-  ip_range_filter = concat([trimspace(data.http.my_ip.response_body), "0.0.0.0"], var.extra_cosmos_ips)
+  ip_range_filter               = ["${trimspace(data.http.my_ip.response_body)}", "0.0.0.0"]
 
   capabilities { name = "EnableServerless" }
 
@@ -518,12 +507,6 @@ resource "azurerm_linux_function_app" "backend" {
     http2_enabled       = true
     minimum_tls_version = "1.2"
 
-    # CORS: allow the Static Web App frontend to call this API
-    cors {
-      allowed_origins     = ["https://${azurerm_static_web_app.frontend.default_host_name}"]
-      support_credentials = false
-    }
-
     application_stack {
       python_version = "3.12"
     }
@@ -608,10 +591,6 @@ resource "azurerm_linux_function_app" "email" {
     OPENAI_API_KEY    = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=OPENAI-API-KEY)"
     OPENAI_BASE_URL   = "@Microsoft.KeyVault(VaultName=${local.kv_name};SecretName=OPENAI-BASE-URL)"
     OPENAI_MODEL_NAME = var.foundry_model_name
-
-    # Durable Functions — unique hub name prevents namespace collision with backend app
-    # (both share the same storage account; different hub = separate queue/table/blob prefixes)
-    DURABLE_TASK_HUB_NAME = "CarClinchEmailHub"
 
     # Durable timer config
     FOLLOWUP_TIMER          = var.followup_timer
