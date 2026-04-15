@@ -1,8 +1,8 @@
-# CarClinch - Dealership Assistant
+# CarClinch Dealership Assistant
 
 ## Overview
 
-This repository contains the source code, infrastructure configuration, and supporting materials for the dealership assistant POC.  
+This repository is the central hub of the dealership assistant project. It contains infrastructure configuration, and supporting materials for the dealership assistant POC.  
 The primary written documentation (architecture, workflows, sprint notes, decisions, etc.) is maintained in a shared Google Docs workspace for easier collaboration.
 
 **[Full Documentation (Google Docs)](https://docs.google.com/document/d/1wHahfUJDdmyAKJxrRkTXH2aZyR6RQWlMjBsrmCD3_W8/edit?usp=sharing)**
@@ -13,10 +13,24 @@ The `/docs` directory in this repository contains uploaded files that are import
 
 ## Repository Structure
 ```
-infra/              → Local infra (Docker Compose) & Terraform modules
-docs/               → Uploaded files (presentations, reports, diagrams, etc.)
+infra/              # Local infra (Docker Compose) & Terraform modules
+docs/               # Uploaded files (presentations, reports, diagrams, etc.)
 ```
 ---
+
+## Service Repositories
+
+| Service                  | Purpose                                                                                                                                                             | GitHub                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Form frontend service    | HTML/CSS/JS frontend view for a basic lead inquiry intake form.                                                                                                     | [Link](https://github.com/CarClinch-Dealership-Assistant/form-frontend-service)    |
+| Form backend service     | Python-based Azure Function to validate lead inquiry intake form payloads to enqueue for downstream processing.                                                     | [Link](https://github.com/CarClinch-Dealership-Assistant/form-backend-service)     |
+| Email processing service | Python-based Azure Durable Function to handle AI-powered dealership-lead email conversations, including informing, appointment booking, follow-ups, and escalation. | [Link](https://github.com/CarClinch-Dealership-Assistant/email-processing-service) |
+
+## Worker Repository
+
+| Service            | Purpose                                                                                                                                                  | GitHub                                                                       |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Lead intake worker | Worker to automatically generate lead form submissions straight into Service Bus for downstream processing; stress tester for `email-processing-service` | [Link](https://github.com/CarClinch-Dealership-Assistant/lead-intake-worker) |
 
 ## Contributing
 

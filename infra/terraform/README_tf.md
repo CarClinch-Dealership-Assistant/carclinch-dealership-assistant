@@ -40,7 +40,7 @@ func azure functionapp publish carclinch-backend-dev --python
 This requires you to navigate to cloned local repo for `email-processing-service`.
 
 ```
-func azure functionapp publish carclinch-email-dev --python
+func azure functionapp publish carclinchalice-email-dev --python
 ```
 
 ## Test
