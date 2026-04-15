@@ -7,11 +7,12 @@ prefix             = "carclinch"
 environment        = "dev"
 location           = "eastus2"
 
+# commented out; can configure followup variables for testing
 # followup_time_structure = "seconds"
 # followup_timer = "90,90,90"
 
 # for windows; mac/linux compatible by default for seeding CosmosDB
-python_cmd = "python"
-pip_cmd    = "pip"
+# python_cmd = "python"
+# pip_cmd    = "pip"
 
 admin_email = ""

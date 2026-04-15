@@ -37,7 +37,7 @@ DB_NAME = "CarClinchDB"
 CONTAINERS = [
     { "id": "dealerships",   "pk": "/id" },
     { "id": "vehicles",      "pk": "/dealerId" },
-    { "id": "leads",         "pk": "/id" },
+    { "id": "leads",         "pk": "/email" },
     { "id": "conversations", "pk": "/leadId" },
     { "id": "messages",      "pk": "/conversationId" },
     { "id": "appointments",  "pk": "/dealerId" }

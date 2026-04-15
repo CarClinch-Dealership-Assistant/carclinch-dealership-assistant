@@ -87,6 +87,9 @@ services:
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
       OPENAI_BASE_URL: "${OPENAI_BASE_URL}"
       OPENAI_MODEL_NAME: "${OPENAI_MODEL_NAME}"
+      FOLLOWUP_TIMER: ${FOLLOWUP_TIMER:-24,24,24}
+      FOLLOWUP_TIME_STRUCTURE: ${FOLLOWUP_TIME_STRUCTURE:-"hours"}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-""}
     depends_on:
       - service-bus
       - azurite
