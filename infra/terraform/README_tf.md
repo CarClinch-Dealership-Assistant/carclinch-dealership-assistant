@@ -6,21 +6,21 @@
 ```
 terraform init
 ```
-2. Create a **Personal access token (classic)** on GitHub via Settings -> Developer Tools -> Tokens. Ensure you enable `repo` and `workflow` scope.
-2. Copy `terraform.tfvars.example` and set `gmail_app_password`, `gmail_user`, and `github_token`. Adjust the other tfvars as needed, like region if your student sub doesn't use the default `eastus2`. Keep in mind that SWA can only deploy in regions `'westus2,centralus,eastus2,westeurope,eastasia'`
-3. Run:
+2. Create a **Personal access token (classic)** on GitHub via Settings -> Developer Tools -> Tokens. Ensure you enable `repo` and `workflow` scope. This is to deploy the frontend to SWA by giving Terraform permissions to update variables in the form-frontend repository.
+3. Copy `terraform.tfvars.example` and set `gmail_app_password`, `gmail_user`, and `github_token`. Adjust the other tfvars as needed, like region if your student sub doesn't use the default `eastus2`. Keep in mind that SWA can only deploy in regions `'westus2,centralus,eastus2,westeurope,eastasia'`
+4. Run:
 ```
 terraform apply
 ```
-4. Set your public IP for CosmosDB seeding as instructed.
-5. Type 'yes' when asked.
-6. To deploy frontend to Static Web App, run:
+5. Set your public IP for CosmosDB seeding as instructed.
+6. Type 'yes' when asked.
+7. To deploy frontend to Static Web App, run:
 ```
 gh workflow run azure-static-web-apps.yml \
   --repo CarClinch-Dealership-Assistant/form-frontend-service \
   --ref task/extVariables
 ```
-7. To deploy the Function Apps, review the section below.
+8. To deploy the Function Apps, review the section below.
 
 ## Azure Functions
 
