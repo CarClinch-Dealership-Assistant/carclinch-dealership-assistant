@@ -20,12 +20,11 @@ gh workflow run azure-static-web-apps.yml \
   --repo CarClinch-Dealership-Assistant/form-frontend-service \
   --ref task/extVariables
 ```
-
-(depending on when you look at this, ref may be `main`; that task branch should be a safe up to date bet though)
+7. To deploy the Function Apps, review the section below.
 
 ## Azure Functions
 
-Cannot use Docker images for Consumption. In practice we will likely use GitHub Actions. For now, manually zip and push them to the remote Function App.
+We cannot use Docker images to deploy the services on Consumption tier of Azure Functions. W recommend using GitHub Actions for a live production environment. For POC, we manually zip and push them to the remote Function App.
 
 ### Push Zip Backend Function
 
@@ -46,3 +45,7 @@ func azure functionapp publish carclinchalice-email-dev --python
 ## Test
 
 Navigate to the provided `frontend-url` in the Terraform outputs.
+
+```
+terraform output frontend_url
+```
