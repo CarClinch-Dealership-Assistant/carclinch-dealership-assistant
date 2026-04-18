@@ -68,3 +68,21 @@ output "key_vault_name" {
   value       = azurerm_key_vault.main.name
   description = "Key Vault name; useful for az keyvault secret list --vault-name <name>"
 }
+
+# == Monitoring & Logging ======================================================
+output "log_workspace_id" {
+  value       = azurerm_log_analytics_workspace.main.workspace_id
+  description = "Log Analytics Workspace ID (Set as LOG_WORKSPACE_ID for the local log dashboard)"
+}
+
+output "backend_appinsights_connection_string" {
+  value       = azurerm_application_insights.backend.connection_string
+  sensitive   = true
+  description = "Set as APPLICATIONINSIGHTS_CONNECTION_STRING in the backend's local.settings.json"
+}
+
+output "email_appinsights_connection_string" {
+  value       = azurerm_application_insights.email.connection_string
+  sensitive   = true
+  description = "Set as APPLICATIONINSIGHTS_CONNECTION_STRING in the email service's local.settings.json"
+}

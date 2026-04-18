@@ -26,11 +26,12 @@ docs/               # Uploaded files (presentations, reports, diagrams, etc.)
 | Form backend service     | Python-based Azure Function to validate lead inquiry intake form payloads to enqueue for downstream processing.                                                     | [Link](https://github.com/CarClinch-Dealership-Assistant/form-backend-service)     |
 | Email processing service | Python-based Azure Durable Function to handle AI-powered dealership-lead email conversations, including informing, appointment booking, follow-ups, and escalation. | [Link](https://github.com/CarClinch-Dealership-Assistant/email-processing-service) |
 
-## Worker Repository
+## Development Tools Repositories
 
-| Service            | Purpose                                                                                                                                                  | GitHub                                                                       |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Lead intake worker | Worker to automatically generate lead form submissions straight into Service Bus for downstream processing; stress tester for `email-processing-service` | [Link](https://github.com/CarClinch-Dealership-Assistant/lead-intake-worker) |
+| Service               | Purpose                                                                                                                                                  | GitHub                                                                          |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Lead intake worker    | Worker to automatically generate lead form submissions straight into Service Bus for downstream processing; stress tester for `email-processing-service` | [Link](https://github.com/CarClinch-Dealership-Assistant/lead-intake-worker)    |
+| Log dashboard service | Log dashboard that connects to live Azure resources' Application Insights to view Function App logs side by side. (has some lag)                         | [Link](https://github.com/CarClinch-Dealership-Assistant/log-dashboard-service) |
 
 ## Contributing
 
